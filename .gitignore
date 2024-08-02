@@ -1,0 +1,6 @@
+
+env/
+ENV/
+.env
+data/
+.ipynb
