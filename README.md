@@ -25,15 +25,13 @@
  
    ```  
   {
-                "TotalCharges":float,
-                'Month-to-month':int,
-                'One year':int
-                'Two year':int
-                'PhoneService': int,
-                'tenure': int
+                "TotalCharges":"1889.5",
+                "Contract":"One year",
+                "PhoneService":"Yes",
+                "tenure": 34
             }
 ```
- 5. You should expect a response 200 with a `"prediction": _____` which means __________-_.
+ 5. You should expect a response 200 with a `"prediction": 0` which means __________-_.
 
  
 
