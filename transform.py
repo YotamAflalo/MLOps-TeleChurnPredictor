@@ -1,6 +1,9 @@
 import pandas as pd
 
 def transform_df(dataset:pd.DataFrame): #יש בעיה בטרנספורמר הזה - כשעושים "גט דמיז" מקבלים רק את העמודות שיש בו, לא את העמודות שאין
+    '''
+    get:
+    return: '''
     # Nulls:
     dataset['TotalCharges'] = dataset['TotalCharges'].fillna(2279) # 2279 mean value in data
     dataset['TotalCharges'] = dataset['TotalCharges'].str.replace(' ','2279') # remove space string in data
