@@ -4,8 +4,6 @@ from fastapi import FastAPI
 import pickle
 from pydantic import BaseModel
 from transform import transform_df
-
-    
 from pydantic import BaseModel, Field
 
 class Prediction(BaseModel):  #####צריך לטפל בשדות ולוודא שהם יתאימו לשדות של הטבלה. בנוסף צריך להוסיף אפשרות שהוא יקבל שדות אחרות שלא יכנסו פנימה (כל הזבל)
