@@ -2,5 +2,8 @@
 env/
 ENV/
 .env
-data/
 .ipynb
+.ipynb_checkpoints/
+__pycache__/
+.venv/
+.vscode/
