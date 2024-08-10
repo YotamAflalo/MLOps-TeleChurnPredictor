@@ -9,6 +9,7 @@ def transform_df(df):
         'TechSupport', 'StreamingTV', 'StreamingMovies', 'Contract', 'PaperlessBilling',
         'PaymentMethod', 'MonthlyCharges', 'TotalCharges'
     ]
+    rellevent_columns = ['customerID','tenure', 'PhoneService','TotalCharges', 'Contract']
     df = basic_preparation(df, good_columns)
     df = map_categorical(df)
     df = create_features(df)

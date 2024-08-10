@@ -12,18 +12,26 @@ def drop_unnecessary_columns(df, good_columns):
 
 def handle_missing_values(df):
     # Impute missing values for TotalCharges with the mean
-    df['TotalCharges'] = df['TotalCharges'].str.replace(' ', '2279') # Need to remove this line and think of a better way to handle this
-    total_charges_imputer = SimpleImputer(strategy='mean')
-    df['TotalCharges'] = total_charges_imputer.fit_transform(df[['TotalCharges']])
-
+    
     # Drop rows where Contract is null
-    df = df.dropna(subset=['Contract'])
+    df = df.dropna(subset=['Contract']) 
+
+    df['TotalCharges'] = df['TotalCharges'].str.replace(' ', '2279') # Need to remove this line and think of a better way to handle this
+    df['TotalCharges'] = df['TotalCharges'].fillna(2279)
+    df['TotalCharges'] = df['TotalCharges'].astype(float)
+    # we can't use SimpleImputer here, in the api we getting just one row, in the batch we will get diffrent mean every time
+    # we shold use the 2279 constent, or make a artifact for SimpleImputer with the original data
+    # total_charges_imputer = SimpleImputer(strategy='mean')
+    # df['TotalCharges'] = total_charges_imputer.fit_transform(df[['TotalCharges']])
+
+    
 
     # Fill missing values for PhoneService with 'No'
     phone_service_imputer = SimpleImputer(strategy='constant', fill_value='No')
     df['PhoneService'] = phone_service_imputer.fit_transform(df[['PhoneService']])
 
-    # Fill missing values for tenure with the mean
+    # Fill missing values for tenure with the mean 
+    # here we also hava the same problame - we can't use the arbitrery mean in the batch as a mean..
     tenure_imputer = SimpleImputer(strategy='mean')
     df['tenure'] = tenure_imputer.fit_transform(df[['tenure']])
 
