@@ -15,7 +15,16 @@ sys.path.append(str(src_dir))
 # from data.artifact_preparation import CustomMissingValueHandler
 # Construct the path to the artifact
 artifact_path = src_dir / 'data' / 'artifacts' / 'missing_value_handler.pkl'
+class CustomUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if name == 'CustomMissingValueHandler':
+            return CustomMissingValueHandler
+        return super().find_class(module, name)
 
+def load_custom_handler(filepath):
+    with open(filepath, 'rb') as f:
+        unpickler = CustomUnpickler(f)
+        return unpickler.load()
 class Prediction(
     BaseModel):  #####צריך לטפל בשדות ולוודא שהם יתאימו לשדות של הטבלה. בנוסף צריך להוסיף אפשרות שהוא יקבל שדות אחרות שלא יכנסו פנימה (כל הזבל)
     TotalCharges: str# = Field(alias='TotalCharges')
@@ -28,7 +37,6 @@ class Prediction(
 
 
 app = FastAPI()
-
 
 @app.get("/")
 def read_root():
@@ -48,10 +56,11 @@ def predict(pred: Prediction):
     # pickled_model = pickle.load(file_model)
 
     # Contains a single sample.
-    with open('churn_model.pickle', 'rb') as f:
+    with open('models/churn_model.pickle', 'rb') as f:
         rf_model = pickle.load(f)
     input_data = pd.DataFrame([pred.dict(by_alias=True)])
-    handler = CustomMissingValueHandler.load(str(artifact_path))    
+    handler = load_custom_handler('models/missing_value_handler.pkl')
+    #handler = CustomMissingValueHandler.load('models/missing_value_handler_update.pkl')#(str(artifact_path))    
     input_data = handler.transform(input_data)
 
     # input_data = np.array(input_data)

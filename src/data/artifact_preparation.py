@@ -76,7 +76,7 @@ if __name__ == "__main__":
     X = dataset = pd.read_csv(r'C:\Users\yotam\Desktop\mlops_learning\mid_project\data\raw\database_input.csv')
 
 
-    artifact_path = 'src/data/artifacts/missing_value_handler.pkl'
+    artifact_path = 'artifacts/missing_value_handler_update.pkl'
     
     create_and_save_artifact(X, artifact_path)
     X_transformed = load_and_use_artifact(X, artifact_path)
