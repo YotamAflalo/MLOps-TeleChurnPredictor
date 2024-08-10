@@ -2,12 +2,13 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI
 import pickle
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
 #from transform import transform_df
 from src.data.artifact_preparation import CustomMissingValueHandler
 import os
 import sys
 from pathlib import Path
+from typing import Union, Optional
 
 # Add the 'src' directory to the Python path
 src_dir = Path(__file__).resolve().parents[2]
@@ -27,13 +28,14 @@ def load_custom_handler(filepath):
         return unpickler.load()
 class Prediction(
     BaseModel):  #####צריך לטפל בשדות ולוודא שהם יתאימו לשדות של הטבלה. בנוסף צריך להוסיף אפשרות שהוא יקבל שדות אחרות שלא יכנסו פנימה (כל הזבל)
-    TotalCharges: str# = Field(alias='TotalCharges')
+    TotalCharges: Optional[Union[str, int]]# = Field(alias='TotalCharges')
     Contract: str# = Field(alias='Contract')
-    PhoneService: str# = Field(alias='PhoneService')
-    tenure: int# = Field(alias='tenure')
+    PhoneService: Optional[str]# = Field(alias='PhoneService')
+    tenure: Optional[int]# = Field(alias='tenure')
 
     class Config:
         allow_population_by_field_name = True
+        extra = Extra.allow 
 
 
 app = FastAPI()
