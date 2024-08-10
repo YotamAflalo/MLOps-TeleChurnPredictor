@@ -27,7 +27,7 @@ def load_custom_handler(filepath):
         unpickler = CustomUnpickler(f)
         return unpickler.load()
 class Prediction(
-    BaseModel):  #####צריך לטפל בשדות ולוודא שהם יתאימו לשדות של הטבלה. בנוסף צריך להוסיף אפשרות שהוא יקבל שדות אחרות שלא יכנסו פנימה (כל הזבל)
+    BaseModel):  
     TotalCharges: Optional[Union[str, int]]# = Field(alias='TotalCharges')
     Contract: str# = Field(alias='Contract')
     PhoneService: Optional[str]# = Field(alias='PhoneService')
@@ -44,11 +44,12 @@ app = FastAPI()
 def read_root():
     return {"instractions": """please provide json file in the following format: 
             {
-                "TotalCharges":str,
+                "TotalCharges":str or int,
                 'Contract':str,
                 'PhoneService':str,
                 'tenure': int
-            } """}
+            } """
+            }
 
 
 @app.post("/predict/")
