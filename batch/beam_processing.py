@@ -1,5 +1,5 @@
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 import pandas as pd
 import pickle
 import datetime
@@ -7,6 +7,7 @@ import datetime
 REQUIRED_COLUMNS = ['Contract', 'tenure']
 OPTIONAL_COLUMNS = ['TotalCharges', 'PhoneService']
 PATH = r"C:\Users\yotam\Desktop\mlops_learning\mid_project\data\database_input.csv" 
+
 # Define a custom transform to clean and preprocess data
 
 def discard_incomplete(data):
@@ -40,8 +41,7 @@ class TransformData(beam.DoFn):
             dataset['PhoneService'] = 0
 
         # One-hot encoding for Contract column
-        if 'Contract' in dataset.columns:
-            dataset = dataset.join(pd.get_dummies(dataset['Contract']).astype(int))
+        dataset = dataset.join(pd.get_dummies(dataset['Contract']).astype(int))
 
         # Ensure all one-hot encoded columns are present
         for val in ['Month-to-month', 'One year', 'Two year']:
@@ -81,6 +81,7 @@ def run():
         model = pickle.load(f)
     time =  str(datetime.datetime.now()).replace(' ','_').replace(':','_')
     options = PipelineOptions()
+
     p = beam.Pipeline(options=options)
     # headers = (
     #     p 
@@ -97,14 +98,11 @@ def run():
         | 'FormatToDict' >> beam.Map(lambda x: {"customerID": x[1], "tenure": x[6],
                                                  "PhoneService": x[7], "Contract": x[16], "TotalCharges": x[20]})
 
-        #| 'ConvertToDict' >> beam.Map(lambda line, headers: parse_csv_line(line, headers), beam.pvalue.AsSingleton(headers))
-        #| 'AddIndex' >> beam.ParDo(lambda i_x: AddID().process(i_x[1], i_x[0]), beam.ParDo(lambda element: enumerate(element)))
         | 'DeleteIncompleteData' >> beam.Filter(discard_incomplete)
         #| 'DeleteIncompleteData' >>  beam.ParDo(discard_incomplete_dofn())
-        #| 'PrintDebug2' >> beam.ParDo(print_debug_info)
         | 'TransformData' >> beam.ParDo(TransformData())
         | 'Predict' >> beam.ParDo(Predict(model))
-        | 'WriteResults' >> beam.io.WriteToText(f'output_{time}.csv')
+        | 'WriteResults' >> beam.io.WriteToText(fr'output\results_{time}.csv')
     )
 
     p.run().wait_until_finish()
