@@ -9,7 +9,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Union, Optional
-
+from config.config import result_columns
 # Add the 'src' directory to the Python path
 src_dir = Path(__file__).resolve().parents[2]
 sys.path.append(str(src_dir))
@@ -71,7 +71,7 @@ def predict(pred: Prediction):
     # prediction_result = pickled_model.predict([input_data])
 
     
-    result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
+    #result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
     prediction_result = rf_model.predict(input_data[result_columns])
     print(prediction_result)
     return {"prediction": prediction_result.tolist()[0]}

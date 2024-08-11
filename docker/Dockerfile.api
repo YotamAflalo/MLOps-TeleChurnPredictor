@@ -1,5 +1,6 @@
 # 
 FROM python:3.10.12
+LABEL maintainer="Yotam <yotam.aflalo433@gmail.com>"
 
 WORKDIR /code
 RUN set  SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
