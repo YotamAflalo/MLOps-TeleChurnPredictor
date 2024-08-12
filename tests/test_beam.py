@@ -5,8 +5,7 @@ from apache_beam.testing.util import PAssert
 from unittest.mock import MagicMock
 import pandas as pd
 
-# Assuming the DoFns and helper functions from your original code are imported or defined in this file
-# e.g., discard_incomplete, TransformData, Predict, etc.
+
 
 class TestMyPipeline(unittest.TestCase):
     def setUp(self):
