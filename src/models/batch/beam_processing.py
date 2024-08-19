@@ -4,8 +4,7 @@ import pandas as pd
 import pickle
 import datetime
 
-REQUIRED_COLUMNS = ['Contract', 'tenure']
-OPTIONAL_COLUMNS = ['TotalCharges', 'PhoneService']
+
 PATH = r"C:\Users\yotam\Desktop\mlops_learning\mid_project\data\database_input.csv" 
 
 # Define a custom transform to clean and preprocess data

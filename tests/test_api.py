@@ -14,7 +14,7 @@ def test_info():
                 'tenure': int
             } """
             }
-res = client.post(json=True,)   
+
 def test_single_prediction0():
     response = client.post(
         "/predict/",
