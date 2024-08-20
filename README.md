@@ -11,16 +11,15 @@
 - Github Account
 
 
-##  num 1: still not done
+##  batch 
 
 
 
 
-## num2: Run using FastAPI, for now - locally
-
- 1. Run `docker build -t mlops-fastapi -f docker/Dockerfile.api .` in the root of the project to build the image of the api.
- 2. Run  `docker run -d --name ml -p 80:8080 mlops-fastapi` to create the container using ml-api image built.
- 3. Open [localhost](http://localhost/docs) to test the project.
+## Run the API with FastAPI (for now - locally)
+ 1. run `cd docker`
+ 2. Run `docker compose -f docker-compose.yaml up --build` in the docker folder in the project to build the image of the api.
+ 3. You may open [\[localhost\](http://localhost/docs)](http://localhost:8005/docs) to test the API.
  4. On /predict/ post endpoint, you can use this body as an example:
  
    ```  
@@ -32,7 +31,13 @@
             }
 ```
  5. You should expect a response 200 with a `"prediction": 0` which means the cleint will not leave soon.
-
  
+## monitor with grafana
+1. enter [text](http://localhost:3000/)
+2. go to "dashboards"
+3. enjoy!
+![alt text](dashboard.png)
+
+
 
  
