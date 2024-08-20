@@ -10,6 +10,9 @@ import sys
 from pathlib import Path
 from typing import Union, Optional
 from config.config import result_columns
+from prometheus_fastapi_instrumentator import Instrumentator
+# import uvicorn
+
 # Add the 'src' directory to the Python path
 src_dir = Path(__file__).resolve().parents[2]
 sys.path.append(str(src_dir))
@@ -39,6 +42,7 @@ class Prediction(
 
 
 app = FastAPI()
+port = int(os.environ.get('PORT',8005))
 
 @app.get("/")
 def read_root():
@@ -75,3 +79,7 @@ def predict(pred: Prediction):
     prediction_result = rf_model.predict(input_data[result_columns])
     print(prediction_result)
     return {"prediction": prediction_result.tolist()[0]}
+
+# if __name__ == "__main__":
+#     uvicorn.run("main:app", host="0.0.0.0",port=port,reload=False)
+Instrumentator().instrument(app).expose(app)

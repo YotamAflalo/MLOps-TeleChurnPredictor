@@ -1,15 +1,15 @@
-# 
+
 FROM python:3.10.12
 LABEL maintainer="Yotam <yotam.aflalo433@gmail.com>"
 
 WORKDIR /code
 RUN set  SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
 
-COPY ./requirements.txt /code/requirements.txt
+COPY requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-COPY ./src/models/api /code/app
+COPY src/models/api /code/app
 
-COPY . /code/
+COPY . /code/ 
 
-CMD ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8005"]
