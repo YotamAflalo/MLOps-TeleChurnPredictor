@@ -1,10 +1,9 @@
-version: "2.2"
 
 services:
   app:
     build: 
-      context: .
-      dockerfile: docker/Dockerfile.fastapi
+      context: ..
+      dockerfile: docker/Dockerfile.api
     restart: unless-stopped
     container_name: app
     ports:
@@ -20,7 +19,7 @@ services:
     ports:
       - 9090:9090
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml #./prometheus.yml
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     networks:
@@ -37,9 +36,9 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml #./datasource.yml
     env_file:
-      - ./config.monitoring
+      - ./config.monitoring #./config.monitoring
     networks:
       example-network:
         ipv4_address: 172.16.238.12
