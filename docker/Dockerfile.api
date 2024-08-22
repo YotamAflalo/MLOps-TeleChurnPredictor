@@ -4,9 +4,6 @@ LABEL maintainer="Yotam <yotam.aflalo433@gmail.com>"
 WORKDIR /code
 ENV SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
 
-# Install netcat
-RUN apt-get update && apt-get install -y netcat-openbsd && apt-get clean
-
 COPY requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
@@ -14,7 +11,3 @@ COPY src/models/api /code/app
 
 COPY . /code/ 
 
-COPY docker/wait-for-it.sh /wait-for-it.sh
-RUN chmod +x /wait-for-it.sh
-
-CMD ["/wait-for-it.sh", "db", "5432", "uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8005"]
