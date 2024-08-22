@@ -1,25 +1,32 @@
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session # for connecting to the database
 import pickle
-from pydantic import BaseModel, Extra
-#from transform import transform_df
-from src.data.artifact_preparation import CustomMissingValueHandler
+from pydantic import BaseModel, Extra #to ensure the integrity of the input
 import os
 import sys
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional #to ensure the integrity of the input
+from prometheus_fastapi_instrumentator import Instrumentator #for logging
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON # for connecting to the database
+from sqlalchemy.ext.declarative import declarative_base# for connecting to the database
+from sqlalchemy.orm import sessionmaker# for connecting to the database
+from datetime import datetime
+from sqlalchemy.exc import OperationalError# for connecting to the database
+import time
+
+from src.data.artifact_preparation import CustomMissingValueHandler
 from config.config import result_columns
-from prometheus_fastapi_instrumentator import Instrumentator
-# import uvicorn
 
 # Add the 'src' directory to the Python path
 src_dir = Path(__file__).resolve().parents[2]
 sys.path.append(str(src_dir))
-# from data.artifact_preparation import CustomMissingValueHandler
-# Construct the path to the artifact
+
 artifact_path = src_dir / 'data' / 'artifacts' / 'missing_value_handler.pkl'
+
 class CustomUnpickler(pickle.Unpickler):
+    '''Used to open the transformer we built'''
     def find_class(self, module, name):
         if name == 'CustomMissingValueHandler':
             return CustomMissingValueHandler
@@ -29,57 +36,82 @@ def load_custom_handler(filepath):
     with open(filepath, 'rb') as f:
         unpickler = CustomUnpickler(f)
         return unpickler.load()
-class Prediction(
-    BaseModel):  
-    TotalCharges: Optional[Union[str, int]]# = Field(alias='TotalCharges')
-    Contract: str# = Field(alias='Contract')
-    PhoneService: Optional[str]# = Field(alias='PhoneService')
-    tenure: Optional[int]# = Field(alias='tenure')
+
+class Prediction(BaseModel):
+    TotalCharges: Optional[Union[str, int]]
+    Contract: str
+    PhoneService: Optional[str]
+    tenure: Optional[int]
 
     class Config:
         allow_population_by_field_name = True
         extra = Extra.allow 
 
+#connecting to the db
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    
+Base = declarative_base()
+
+class APILog(Base):
+    __tablename__ = "api_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.now)
+    request_data = Column(JSON)
+    prediction = Column(Integer)
+
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    retries = 5
+    while retries > 0:
+        try:
+            db = SessionLocal()
+            yield db
+        except OperationalError:
+            retries -= 1
+            time.sleep(1)
+        finally:
+             db.close()
+    if retries == 0:
+        db.close()
+        raise Exception("Could not connect to the database after multiple attempts")
+
 
 app = FastAPI()
-port = int(os.environ.get('PORT',8005))
+port = int(os.environ.get('PORT', 8005))
 
 @app.get("/")
 def read_root():
-    return {"instractions": """please provide json file in the following format: 
+    return {"instructions": """Please provide a JSON file in the following format: 
             {
-                "TotalCharges":str or int,
-                'Contract':str,
-                'PhoneService':str,
-                'tenure': int
-            } """
-            }
-
+                "TotalCharges": str or int,
+                "Contract": str,
+                "PhoneService": str,
+                "tenure": int
+            }"""}
 
 @app.post("/predict/")
-def predict(pred: Prediction):
-    # Load the model
-    # file_model = open("churn_model.pkl","rb")
-    # pickled_model = pickle.load(file_model)
-
-    # Contains a single sample.
+def predict(pred: Prediction, db: Session = Depends(get_db)):
     with open('models/churn_model.pickle', 'rb') as f:
         rf_model = pickle.load(f)
     input_data = pd.DataFrame([pred.dict(by_alias=True)])
     handler = load_custom_handler('models/missing_value_handler.pkl')
-    #handler = CustomMissingValueHandler.load('models/missing_value_handler_update.pkl')#(str(artifact_path))    
     input_data = handler.transform(input_data)
-
-    # input_data = np.array(input_data)
-
-    # prediction_result = pickled_model.predict([input_data])
-
     
-    #result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
     prediction_result = rf_model.predict(input_data[result_columns])
-    print(prediction_result)
-    return {"prediction": prediction_result.tolist()[0]}
+    
+    # Store the request and prediction in the database
+    log_entry = APILog(
+        request_data=pred.dict(),
+        prediction=int(prediction_result[0])
+    )
+    db.add(log_entry)
+    db.commit()
 
-# if __name__ == "__main__":
-#     uvicorn.run("main:app", host="0.0.0.0",port=port,reload=False)
+    return {"prediction": int(prediction_result[0])}
+
 Instrumentator().instrument(app).expose(app)
