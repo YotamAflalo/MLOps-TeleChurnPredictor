@@ -11,6 +11,24 @@ services:
     networks:
       example-network:
         ipv4_address: 172.16.238.10
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/api_logs
+    command: ["/wait-for-it.sh", "db", "5432", "uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8005"]
+  db:
+    image: postgres:13
+    restart: unless-stopped
+    container_name: db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=api_logs
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      example-network:
+        ipv4_address: 172.16.238.13
 
   prometheus:
     image: prom/prometheus:latest
@@ -19,7 +37,7 @@ services:
     ports:
       - 9090:9090
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml #./prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml 
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     networks:
@@ -36,18 +54,20 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml #./datasource.yml
+      - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
     env_file:
-      - ./config.monitoring #./config.monitoring
+      - ./config.monitoring 
     networks:
       example-network:
         ipv4_address: 172.16.238.12
 
 networks:
   example-network:
-    # name: example-network
     driver: bridge
     ipam:
       driver: default
       config:
         - subnet: 172.16.238.0/24
+
+volumes:
+  postgres_data:
