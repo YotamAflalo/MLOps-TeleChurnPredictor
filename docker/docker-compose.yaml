@@ -63,6 +63,7 @@ services:
       - 3000:3000
     volumes:
       - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - grafana_data:/var/lib/grafana
     env_file:
       - ./config.monitoring 
     networks:
@@ -79,3 +80,4 @@ networks:
 
 volumes:
   postgres_data:
+  grafaan_data:
