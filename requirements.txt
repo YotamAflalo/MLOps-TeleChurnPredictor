@@ -9,4 +9,6 @@ uvicorn>=0.15.0,<0.16.0
 prometheus_fastapi_instrumentator
 sqlalchemy
 psycopg2-binary
-pytest
+pytest #for testing the api
+requests #for testing the api
+httpx #for testing the api
