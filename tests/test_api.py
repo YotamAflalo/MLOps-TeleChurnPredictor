@@ -6,14 +6,13 @@ client = TestClient(app)
 def test_info():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"instructions": """please provide json file in the following format: 
+    assert response.json() == {"instructions": """Please provide a JSON file in the following format: 
             {
-                "TotalCharges":str or int,
-                'Contract':str,
-                'PhoneService':str,
-                'tenure': int
-            } """
-            }
+                "TotalCharges": str or int,
+                "Contract": str,
+                "PhoneService": str,
+                "tenure": int
+            }"""}
 
 def test_single_prediction0():
     response = client.post(

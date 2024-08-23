@@ -58,7 +58,7 @@ if IS_TESTING:
 else:
     # Use PostgreSQL for production
     DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
-    
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
@@ -125,3 +125,8 @@ def predict(pred: Prediction, db: Session = Depends(get_db)):
     return {"prediction": int(prediction_result[0])}
 
 Instrumentator().instrument(app).expose(app)
+
+####added for the tests - to delete if make problame to the compose
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8005)

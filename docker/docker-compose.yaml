@@ -81,4 +81,4 @@ networks:
 
 volumes:
   postgres_data:
-  grafaan_data:
+  grafana_data:
