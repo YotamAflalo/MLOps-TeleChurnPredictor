@@ -23,15 +23,17 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest fastapi requests httpx
+        pip install pytest fastapi requests httpx sqlalchemy
 
     - name: Run tests
+      env:
+        TESTING: 'True'
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)
         pytest tests/test_api.py
 
     - name: Build Docker image
-      run: docker build -t your-dockerhub-username/your-app-name:latest -f docker/Dockerfile.api .
+      run: docker build -t yotam433/mid_project_api:latest -f docker/Dockerfile.api .
 
     - name: Log in to Docker Hub
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -42,4 +44,4 @@ jobs:
 
     - name: Push image to Docker Hub
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: docker push your-dockerhub-username/your-app-name:latest
+      run: docker push yotam433/mid_project_api:latest

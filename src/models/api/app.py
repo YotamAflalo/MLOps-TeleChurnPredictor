@@ -48,7 +48,17 @@ class Prediction(BaseModel):
         extra = Extra.allow 
 
 #connecting to the db
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
+# DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
+# Check if we're running in a test environment
+IS_TESTING = os.environ.get('TESTING') == 'True'
+
+if IS_TESTING:
+    # Use SQLite for testing
+    DATABASE_URL = "sqlite:///:memory:"
+else:
+    # Use PostgreSQL for production
+    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
+    
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
