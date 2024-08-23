@@ -6,7 +6,7 @@ client = TestClient(app)
 def test_info():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"instractions": """please provide json file in the following format: 
+    assert response.json() == {"instructions": """please provide json file in the following format: 
             {
                 "TotalCharges":str or int,
                 'Contract':str,
@@ -24,8 +24,8 @@ def test_single_prediction0():
     assert response.json() == {"prediction": 0 }
 
 
-def test_single_prediction1():
-    pass
+# def test_single_prediction1():
+#     pass
 
 def test_single_prediction0_more_data():
     response = client.post(
@@ -53,5 +53,5 @@ def test_single_prediction_wrong_data_types_fixable():
     assert response.json() == {"prediction": 0 }
 
 
-def test_single_prediction_wrong_data_types_unfixable():
-    pass
+# def test_single_prediction_wrong_data_types_unfixable():
+#     pass
