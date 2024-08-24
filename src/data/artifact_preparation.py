@@ -22,7 +22,12 @@ class CustomMissingValueHandler(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         X_ = X.copy()
-
+        # making sure all the relevant columns are in the df, with value or null
+        expected_columns = ['TotalCharges', 'Contract', 'PhoneService', 'tenure']
+        for col in expected_columns:
+            if col not in X_.columns:
+                X_[col] = np.nan
+                if col == 'PhoneService': X_[col] = 'No'
         # Drop rows where Contract is null
         X_ = X_.dropna(subset=['Contract'])
 
@@ -36,7 +41,7 @@ class CustomMissingValueHandler(BaseEstimator, TransformerMixin):
         phone_service_imputed = self.phone_service_imputer.transform(X_[['PhoneService']])
         X_['PhoneService'] = pd.Series(phone_service_imputed.ravel(), index=X_.index)
         X_['PhoneService'] = X_['PhoneService'].map(self.phone_service_map)
-
+        #if 'PhoneService' not in X_.columns: X_['PhoneService']=0
         # Handle tenure
         tenure_imputed = self.tenure_imputer.transform(X_[['tenure']])
         X_['tenure'] = pd.Series(tenure_imputed.ravel(), index=X_.index)
@@ -45,9 +50,11 @@ class CustomMissingValueHandler(BaseEstimator, TransformerMixin):
         contract_encoded = self.contract_encoder.transform(X_[['Contract']])
         contract_df = pd.DataFrame(contract_encoded, columns=self.contract_categories, index=X_.index)
 
-        # Join the encoded Contract columns to the original DataFrame
+        # Join the encoded Contract columns to the original DataFrame, and make sure all of them are there
         X_ = X_.join(contract_df)
-
+        for category in self.contract_categories:
+            if category not in X_.columns:
+                X_[category] = 0
         return X_
 
     def fit_transform(self, X, y=None):
@@ -73,7 +80,8 @@ def load_and_use_artifact(X, filepath):
 
 # Example usage:
 if __name__ == "__main__":
-    X = dataset = pd.read_csv(r'C:\Users\yotam\Desktop\mlops_learning\mid_project\data\raw\database_input.csv')
+    #we fit the transformer on the original train data so we consistent
+    X = dataset = pd.read_csv(r'C:\Users\yotam\Desktop\mlops_learning\mid_project\data\raw\original_dataset.csv')
 
 
     artifact_path = 'artifacts/missing_value_handler_update.pkl'

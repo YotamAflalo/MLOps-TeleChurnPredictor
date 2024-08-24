@@ -23,7 +23,7 @@ from config.config import result_columns
 src_dir = Path(__file__).resolve().parents[2]
 sys.path.append(str(src_dir))
 
-artifact_path = src_dir / 'data' / 'artifacts' / 'missing_value_handler.pkl'
+artifact_path = src_dir / 'data' / 'artifacts' / 'missing_value_handler_update.pkl'
 
 class CustomUnpickler(pickle.Unpickler):
     '''Used to open the transformer we built'''
@@ -104,12 +104,12 @@ def read_root():
                 "tenure": int
             }"""}
 
-@app.post("/predict/")
+@app.post("/predict/")  
 def predict(pred: Prediction, db: Session = Depends(get_db)):
     with open('models/churn_model.pickle', 'rb') as f:
         rf_model = pickle.load(f)
     input_data = pd.DataFrame([pred.dict(by_alias=True)])
-    handler = load_custom_handler('models/missing_value_handler.pkl')
+    handler = load_custom_handler('models/missing_value_handler_update.pkl')
     input_data = handler.transform(input_data)
     
     prediction_result = rf_model.predict(input_data[result_columns])
