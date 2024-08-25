@@ -8,3 +8,4 @@ __pycache__/
 .venv/
 .vscode/
 venv/
+src\models\batch\output\results_*.csv

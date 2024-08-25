@@ -3,9 +3,16 @@ from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 import pandas as pd
 import pickle
 import datetime
+# import sys
+# from pathlib import Path
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+import csv
 
-
-PATH = r"C:\Users\yotam\Desktop\mlops_learning\mid_project\data\database_input.csv" 
+# Define paths relative to the current script
+DATA_PATH = os.path.join(current_dir, '..', '..', '..', 'data', 'raw', 'database_input.csv')
+MODEL_PATH = os.path.join(current_dir, '..', '..', '..', 'models', 'churn_model.pickle')
+OUTPUT_DIR = os.path.join(current_dir, 'output')
 
 # Define a custom transform to clean and preprocess data
 
@@ -48,14 +55,11 @@ class TransformData(beam.DoFn):
                 dataset[val] = 0
                 
         return [dataset.to_dict('records')[0]]
-class headers_taker(beam.DoFn):
-    def process(self, element):
-        dataset = pd.DataFrame([element])
-        headers = []
-        for col in dataset.columns: 
-            #print(col)
-            headers.append(col)
-        return headers
+def get_csv_headers(file_path):
+    with open(file_path, 'r') as csvfile:
+        csv_reader = csv.reader(csvfile)
+        headers = next(csv_reader)
+    return headers
 
 class Predict(beam.DoFn):
     def __init__(self, model):
@@ -76,32 +80,24 @@ def print_debug_info(element):
     return [element]
 def run():
     # Load the pre-trained model
-    with open(r'C:\Users\yotam\Desktop\mlops_learning\mid_project\churn_model.pickle', 'rb') as f:
+    with open(MODEL_PATH, 'rb') as f:
         model = pickle.load(f)
     time =  str(datetime.datetime.now()).replace(' ','_').replace(':','_')
     options = PipelineOptions()
 
     p = beam.Pipeline(options=options)
-    # headers = (
-    #     p 
-    #     | 'ReadHeader' >> beam.io.ReadFromText(PATH, skip_header_lines=0)   
-    #     | 'ExtractHeader' >> beam.Map(lambda line: line.split(','))
-    #     #| 'justTakeTheader' >> beam.ParDo(headers_taker()) 
-    #     # | 'ExtractFirstRow' >> beam.Map(lambda headers: headers[0])
-    #     #| 'PrintDebug2' >> beam.ParDo(print_debug_info)
-    # )
+    headers = get_csv_headers(DATA_PATH)
     data = (
         p 
-        | 'ReadData' >> beam.io.ReadFromText(PATH, skip_header_lines=1)
+        | 'ReadData' >> beam.io.ReadFromText(DATA_PATH, skip_header_lines=1)
         | 'SplitData' >> beam.Map(lambda x: x.split(','))
-        | 'FormatToDict' >> beam.Map(lambda x: {"customerID": x[1], "tenure": x[6],
-                                                 "PhoneService": x[7], "Contract": x[16], "TotalCharges": x[20]})
-
+        | 'FormatToDict' >> beam.Map(lambda x: dict(zip(headers, x)))
+        # | 'FormatToDict' >> beam.Map(lambda x: {"customerID": x[1], "tenure": x[6],
+        #                                          "PhoneService": x[7], "Contract": x[16], "TotalCharges": x[20]})
         | 'DeleteIncompleteData' >> beam.Filter(discard_incomplete)
-        #| 'DeleteIncompleteData' >>  beam.ParDo(discard_incomplete_dofn())
         | 'TransformData' >> beam.ParDo(TransformData())
         | 'Predict' >> beam.ParDo(Predict(model))
-        | 'WriteResults' >> beam.io.WriteToText(fr'output\results_{time}.csv')
+        | 'WriteResults' >> beam.io.WriteToText(os.path.join(OUTPUT_DIR, f'results_{time}.csv'))
     )
 
     p.run().wait_until_finish()
