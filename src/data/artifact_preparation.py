@@ -5,6 +5,21 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
 import pickle
 
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define paths relative to the current script
+DATA_PATH = os.path.join(current_dir, '..',  '..', 'data', 'raw', 'original_dataset.csv')
+OUTPUT_DIR = os.path.join(current_dir, '..',  '..', 'models', 'missing_value_handler_original_data.pkl')
+
+def validate_and_transform(value, expected_type, default_value):
+    if value in [' ', '', None]:
+        return default_value
+    try:
+        return expected_type(value)
+    except (ValueError, TypeError):
+        print(f"Warning: Invalid value {value}. Using default value {default_value}")
+        return default_value
 class CustomMissingValueHandler(BaseEstimator, TransformerMixin):
     def __init__(self, total_charges_fill_value=2279):
         self.total_charges_fill_value = total_charges_fill_value
@@ -32,16 +47,18 @@ class CustomMissingValueHandler(BaseEstimator, TransformerMixin):
         X_ = X_.dropna(subset=['Contract'])
 
         # Handle TotalCharges
-        X_['TotalCharges'] = X_['TotalCharges'].fillna(self.total_charges_fill_value)
-        X_['TotalCharges'] = X_['TotalCharges'].astype(str).str.replace(' ', '')
-        X_['TotalCharges'] = pd.to_numeric(X_['TotalCharges'], errors='coerce')
-        X_['TotalCharges'] = X_['TotalCharges'].fillna(self.total_charges_fill_value)
+        if 'TotalCharges' in X_.columns:
+            X_['TotalCharges'] = X_['TotalCharges'].apply(
+                    lambda x: validate_and_transform(x, float, 2279.0)
+            )
+        else:
+            X_['TotalCharges'] = 2279.0
 
         # Handle PhoneService
         phone_service_imputed = self.phone_service_imputer.transform(X_[['PhoneService']])
         X_['PhoneService'] = pd.Series(phone_service_imputed.ravel(), index=X_.index)
-        X_['PhoneService'] = X_['PhoneService'].map(self.phone_service_map)
-        #if 'PhoneService' not in X_.columns: X_['PhoneService']=0
+        X_['PhoneService'] = X_['PhoneService'].map(lambda x: 1 if x == 'Yes' else 0)
+        if 'PhoneService' not in X_.columns: X_['PhoneService']=0
         # Handle tenure
         tenure_imputed = self.tenure_imputer.transform(X_[['tenure']])
         X_['tenure'] = pd.Series(tenure_imputed.ravel(), index=X_.index)
@@ -81,11 +98,8 @@ def load_and_use_artifact(X, filepath):
 # Example usage:
 if __name__ == "__main__":
     #we fit the transformer on the original train data so we consistent
-    X = dataset = pd.read_csv(r'C:\Users\yotam\Desktop\mlops_learning\mid_project\data\raw\original_dataset.csv')
-
-
-    artifact_path = 'artifacts/missing_value_handler_update.pkl'
+    X = dataset = pd.read_csv(DATA_PATH)
     
-    create_and_save_artifact(X, artifact_path)
-    X_transformed = load_and_use_artifact(X, artifact_path)
+    create_and_save_artifact(X, OUTPUT_DIR)
+    X_transformed = load_and_use_artifact(X, OUTPUT_DIR)
     print(X_transformed.iloc[:20])

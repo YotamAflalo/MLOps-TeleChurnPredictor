@@ -33,13 +33,13 @@ def test_single_prediction0_more_data():
     assert response.status_code == 200
     assert response.json() == {"prediction": 0}
 
-# def test_single_prediction0_less_data_fixable():
-#     response = client.post(
-#         "/predict/",
-#         json={"TotalCharges":"1889.5","Contract":"One year","tenure": 34},
-#     )
-#     assert response.status_code == 200
-#     assert response.json() == {"prediction": 0}
+def test_single_prediction0_less_data_fixable():
+    response = client.post(
+        "/predict/",
+        json={"TotalCharges":"1889.5","Contract":"One year","tenure": 34},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"prediction": 0}
 
 
 def test_single_prediction_wrong_data_types_fixable():

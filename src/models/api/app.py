@@ -23,7 +23,7 @@ from config.config import result_columns
 src_dir = Path(__file__).resolve().parents[2]
 sys.path.append(str(src_dir))
 
-artifact_path = src_dir / 'data' / 'artifacts' / 'missing_value_handler_update.pkl'
+artifact_path = src_dir / 'data' / 'artifacts' / 'missing_value_handler_original_data.pkl'
 
 class CustomUnpickler(pickle.Unpickler):
     '''Used to open the transformer we built'''
@@ -50,46 +50,49 @@ class Prediction(BaseModel):
 #connecting to the db
 # DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
 # Check if we're running in a test environment
+
 IS_TESTING = os.environ.get('TESTING') == 'True'
 
-if IS_TESTING:
+if not IS_TESTING:
+    print('api activate - not in test mode')
     # Use SQLite for testing
-    DATABASE_URL = "sqlite:///:memory:"
-else:
+    # DATABASE_URL = "sqlite:///:memory:"
+# else:
     # Use PostgreSQL for production
     DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        
+    Base = declarative_base()
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
-Base = declarative_base()
+    class APILog(Base):
+        __tablename__ = "api_logs"
 
-class APILog(Base):
-    __tablename__ = "api_logs"
+        id = Column(Integer, primary_key=True, index=True)
+        timestamp = Column(DateTime, default=datetime.now)
+        request_data = Column(JSON)
+        prediction = Column(Integer)
 
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.now)
-    request_data = Column(JSON)
-    prediction = Column(Integer)
+    Base.metadata.create_all(bind=engine)
 
-Base.metadata.create_all(bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    retries = 5
-    while retries > 0:
-        try:
-            db = SessionLocal()
-            yield db
-        except OperationalError:
-            retries -= 1
-            time.sleep(1)
-        finally:
-             db.close()
-    if retries == 0:
-        db.close()
-        raise Exception("Could not connect to the database after multiple attempts")
-
+    def get_db():
+        db = SessionLocal()
+        retries = 5
+        while retries > 0:
+            try:
+                db = SessionLocal()
+                yield db
+            except OperationalError:
+                retries -= 1
+                time.sleep(1)
+            finally:
+                db.close()
+        if retries == 0:
+            db.close()
+            raise Exception("Could not connect to the database after multiple attempts")
+else:
+    def get_db():
+        pass
 
 app = FastAPI()
 port = int(os.environ.get('PORT', 8005))
@@ -109,18 +112,19 @@ def predict(pred: Prediction, db: Session = Depends(get_db)):
     with open('models/churn_model.pickle', 'rb') as f:
         rf_model = pickle.load(f)
     input_data = pd.DataFrame([pred.dict(by_alias=True)])
-    handler = load_custom_handler('models/missing_value_handler_update.pkl')
+    handler = load_custom_handler('models/missing_value_handler_original_data.pkl')
     input_data = handler.transform(input_data)
     
     prediction_result = rf_model.predict(input_data[result_columns])
     
-    # Store the request and prediction in the database
-    log_entry = APILog(
-        request_data=pred.dict(),
-        prediction=int(prediction_result[0])
-    )
-    db.add(log_entry)
-    db.commit()
+    if not IS_TESTING:
+        # Store the request and prediction in the database
+        log_entry = APILog(
+            request_data=pred.dict(),
+            prediction=int(prediction_result[0])
+        )
+        db.add(log_entry)
+        db.commit()
 
     return {"prediction": int(prediction_result[0])}
 
