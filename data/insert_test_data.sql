@@ -1,0 +1,6 @@
+INSERT INTO batch_input (customerID, gender, SeniorCitizen, Partner, Dependents, tenure, PhoneService, MultipleLines, InternetService, OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies, Contract, PaperlessBilling, PaymentMethod, MonthlyCharges, TotalCharges) VALUES
+('5129-JLPIS', 'Male', 0, 'No', 'No', 25, 'Yes', 'No', 'Fiber optic', 'Yes', 'No', 'Yes', 'Yes', 'Yes', 'Yes', 'Month-to-month', 'Yes', 'Electronic check', 105.5, 2686.05),
+('3655-SNQYZ', 'Female', 0, 'Yes', 'Yes', 69, 'Yes', 'Yes', 'Fiber optic', 'Yes', 'Yes', 'Yes', 'Yes', 'Yes', 'Yes', 'Two year', 'No', 'Credit card (automatic)', 113.25, 7895.15),
+('8191-XWSZG', 'Female', 0, 'No', 'No', 52, 'Yes', 'No', 'No', 'No internet service', 'No internet service', 'No internet service', 'No internet service', 'No internet service', 'No internet service', 'One year', 'No', 'Mailed check', 20.65, 1022.95),
+('9959-WOFKT', 'Male', 0, 'No', 'Yes', 71, 'Yes', 'Yes', 'Fiber optic', 'Yes', 'No', 'Yes', 'No', 'Yes', 'Yes', 'Two year', 'No', 'Bank transfer (automatic)', 106.7, 7382.25),
+('4190-MFLUW', 'Female', 0, 'Yes', 'Yes', 10, 'Yes', 'No', 'DSL', 'No', 'No', 'Yes', 'Yes', 'No', 'No', 'Month-to-month', 'No', 'Credit card (automatic)', 55.2, 528.35);
