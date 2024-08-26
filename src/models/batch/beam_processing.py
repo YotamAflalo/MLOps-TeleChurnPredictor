@@ -1,5 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.io.jdbc import WriteToJdbc
 import pandas as pd
 import pickle
 import datetime
@@ -105,16 +106,17 @@ def read_from_db(pipeline, db_url=JDBC_URL, table_name=INPUT_TABLE, username=USE
     )
 
 
+
 def write_to_db(data, db_url=JDBC_URL, table_name=OUTPUT_TABLE, username=USERNAME, password=PASSWORD):
     return (
-            data
-            | 'WriteToDB' >> beam.io.WriteToJdbc(
+        data
+        | 'WriteToDB' >> WriteToJdbc(
             table_name=table_name,
             driver_class_name='org.postgresql.Driver',
             jdbc_url=db_url,
             username=username,
             password=password
-    )
+        )
     )
 def write_results(output_type,data):
     time = datetime.now().strftime('%d_%H_%M')

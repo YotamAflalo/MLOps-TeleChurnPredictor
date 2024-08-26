@@ -1,6 +1,6 @@
 services:
   app:
-    build: 
+    build:
       context: ..
       dockerfile: docker/Dockerfile.api
     restart: unless-stopped
@@ -8,8 +8,7 @@ services:
     ports:
       - 8005:8005
     networks:
-      example-network:
-        ipv4_address: 172.16.238.10
+      - example-network
     depends_on:
       db:
         condition: service_healthy
@@ -28,11 +27,13 @@ services:
       - POSTGRES_DB=api_logs
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh
+      - ./data/init_tables.sql:/docker-entrypoint-initdb.d/init_tables.sql
+      - ./data/insert_test_data.sql:/docker-entrypoint-initdb.d/insert_test_data.sql
     networks:
-      example-network:
-        ipv4_address: 172.16.238.13
+      - example-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d api_logs" ]
+      test: ["CMD-SHELL", "pg_isready -U user -d api_logs"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,9 +51,11 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/api_logs
     networks:
-      example-network:
-        ipv4_address: 172.16.238.14
-    command: python /code/src/models/batch/beam_processing.py
+      - example-network
+    command: >
+      /bin/bash -c "
+      PGPASSWORD=password psql -v ON_ERROR_STOP=1 --host=db --port=5432 --username=user --dbname=api_logs -f /code/data/init_tables.sql;
+      python /code/src/models/batch/beam_processing.py"
 
   prometheus:
     image: prom/prometheus:latest
@@ -65,8 +68,7 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     networks:
-      example-network:
-        ipv4_address: 172.16.238.11
+      - example-network
     depends_on:
       - app
 
@@ -85,8 +87,7 @@ services:
     env_file:
       - ./config.monitoring
     networks:
-      example-network:
-        ipv4_address: 172.16.238.12
+      - example-network
 
 networks:
   example-network:
