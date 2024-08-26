@@ -13,7 +13,10 @@
 
 ##  batch 
 
-
+the architecture of the project is as follows:
+### 1. Data Collection - can be either from a csv in data/raw or from a database (only unpredicted data, based on the timestamp of the last prediction)
+### 2. Data Preprocessing - the data is cleaned and transformed to be used in the model (beam_preprocessing.py)
+### 3. output - the data is saved in the data/batch_results folder.
 
 
 ## Run the API with FastAPI (for now - locally)
