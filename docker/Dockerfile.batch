@@ -1,0 +1,14 @@
+FROM python:3.10.12
+LABEL maintainer="Roey <roey.zalta@gmail.com>"
+
+WORKDIR /code
+
+COPY ../requirements_batch.txt .
+RUN pip install --no-cache-dir --upgrade -r /code/requirements_batch.txt
+
+COPY src/models/batch /code/app
+COPY . /code/
+
+# Set the PYTHONPATH
+ENV PYTHONPATH=/code
+

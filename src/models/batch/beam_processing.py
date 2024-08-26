@@ -1,11 +1,12 @@
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 import pandas as pd
 import pickle
 import datetime
 import os
 import csv
-# from config.config import INPUT_DIR,MODEL_PATH,OUTPUT_DIR
+from datetime import datetime, timedelta
+from config.config import DRIVER_CLASS_NAME, JDBC_URL, USERNAME, PASSWORD, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -15,22 +16,19 @@ MODEL_PATH = os.path.join(current_dir, '..', '..', '..', 'models', 'churn_model.
 OUTPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_results')
 
 
-# Define a custom transform to clean and preprocess data
-
 def discard_incomplete(data):
     """Filters out records that don't have an information about Contract type."""
     return len(data['Contract']) > 0 and len(data['tenure']) > 0
 
 
-class discard_incomplete_dofn(beam.DoFn):
+class DiscardIncompleteDoFn(beam.DoFn):
     def process(self, element):
         dataset = pd.DataFrame([element])
         dataset.reset_index(inplace=True)
-        #print(dataset.columns)
         dataset.dropna(axis=1, subset=['Contract', 'tenure'])
         return [dataset.to_dict('records')[0]]
 
-# validate and transform to ensure the data is in the correct format
+
 def validate_and_transform(value, expected_type, default_value):
     if value in [' ', '', None]:
         return default_value
@@ -45,7 +43,6 @@ class TransformData(beam.DoFn):
     def process(self, element):
         dataset = pd.DataFrame([element])
         
-        # Fill nulls and clean data
         if 'TotalCharges' in dataset.columns:
             dataset['TotalCharges'] = dataset['TotalCharges'].apply(
                     lambda x: validate_and_transform(x, float, 2279.0)
@@ -59,10 +56,8 @@ class TransformData(beam.DoFn):
         else:
             dataset['PhoneService'] = 0
         
-        # One-hot encoding for Contract column
         dataset = dataset.join(pd.get_dummies(dataset['Contract']).astype(int))
         
-        # Ensure all one-hot encoded columns are present
         for val in ['Month-to-month', 'One year', 'Two year']:
             if val not in dataset.columns:
                 dataset[val] = 0
@@ -94,46 +89,87 @@ def parse_csv_line(line, headers):
     return dict(zip(headers, values))
 
 
-def print_debug_info(element):
-    print(f"Debug Info: {element}")
-    return [element]
+def read_from_db(pipeline, db_url=JDBC_URL, table_name=INPUT_TABLE, username=USERNAME, password=PASSWORD):
+    last_24_hours = datetime.now() - timedelta(hours=24)
+    query = f"SELECT * FROM {table_name} WHERE timestamp_column >= '{last_24_hours}'"
+    return (
+            pipeline
+            | 'ReadFromDB' >> beam.io.ReadFromJdbc(
+            table_name=table_name,
+            query=query,
+            driver_class_name='org.postgresql.Driver',
+            jdbc_url=db_url,
+            username=username,
+            password=password
+    )
+    )
 
 
-def run():
-    # Load the pre-trained model
+def write_to_db(data, db_url=JDBC_URL, table_name=OUTPUT_TABLE, username=USERNAME, password=PASSWORD):
+    return (
+            data
+            | 'WriteToDB' >> beam.io.WriteToJdbc(
+            table_name=table_name,
+            driver_class_name='org.postgresql.Driver',
+            jdbc_url=db_url,
+            username=username,
+            password=password
+    )
+    )
+def write_results(output_type,data):
+    time = datetime.now().strftime('%d_%H_%M')
+    if 'csv' in output_type:
+        output_path = os.path.join(OUTPUT_DIR, f"output_{time}.csv")
+        data = (data | 'WriteToCsv' >> beam.io.WriteToText(output_path))
+        print(f"Results written to {output_path}")
+    if 'db' in output_type:
+        write_to_db(data)
+        print(f"Results written to {output_table_name}")
+
+def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table_name=None, output_table_name=None,
+        driver_class_name=DRIVER_CLASS_NAME, jdbc_url=JDBC_URL, username=USERNAME, password=PASSWORD):
     with open(MODEL_PATH, 'rb') as f:
         model = pickle.load(f)
-    for file in os.listdir(INPUT_DIR):
-        if file.endswith(".csv"):
-            DATA_PATH = os.path.join(INPUT_DIR, file)
-            print(f"Processing file: {DATA_PATH}")
-            # log time of prediction
-            time = datetime.datetime.now().strftime('%d_%H_%M')
-            # log file name
-            # here will be the y-log log of the files name and time
-            options = PipelineOptions()
-            # define the pipeline options
+    
+    options = PipelineOptions()
+    
+    if "csv" in input_type or "both" in input_type :
+        for file in os.listdir(INPUT_DIR):
             p = beam.Pipeline(options=options)
-            # define the pipeline headers from the csv file
-            headers = get_csv_headers(DATA_PATH)
-            data = (
-                    p
-                    | 'ReadData' >> beam.io.ReadFromText(DATA_PATH, skip_header_lines=1)
-                    | 'SplitData' >> beam.Map(lambda x: x.split(','))
-                    | 'FormatToDict' >> beam.Map(lambda x: dict(zip(headers, x)))
-                    | 'DeleteIncompleteData' >> beam.Filter(discard_incomplete)
-                    | 'TransformData' >> beam.ParDo(TransformData())
-                    | 'Predict' >> beam.ParDo(Predict(model))
-                    | 'WriteResults' >> beam.io.WriteToText(os.path.join(OUTPUT_DIR, f'results_{file}_{time}.csv'))
-            )
-            
-            
-            p.run().wait_until_finish()
-            print(f"Processing of {DATA_PATH} finished.")
-            # delete the file after from batch_input
-            os.remove(DATA_PATH)
-            print(f"File {DATA_PATH} deleted.")
-            
-            
+            if file.endswith(".csv"):
+                DATA_PATH = os.path.join(INPUT_DIR, file)
+                print(f"Processing file: {DATA_PATH}")
+                headers = get_csv_headers(DATA_PATH)
+                data = (
+                        p
+                        | 'ReadData' >> beam.io.ReadFromText(DATA_PATH, skip_header_lines=1)
+                        | 'ParseCSV' >> beam.Map(lambda line: parse_csv_line(line, headers))
+                        | 'DeleteIncompleteData' >> beam.Filter(discard_incomplete)
+                        | 'TransformData' >> beam.ParDo(TransformData())
+                        | 'Predict' >> beam.ParDo(Predict(model))
+                )
+                # write results
+                write_results(output_type,data)
+                # run the pipeline
+                p.run().wait_until_finish()
+                os.remove(DATA_PATH)
+                print(f"File {DATA_PATH} deleted.")
+    
+    if "db" in input_type or "both" in input_type  :
+        p = beam.Pipeline(options=options)
+        print("Reading from database")
+        data = read_from_db(p)
+        data = (
+                data
+                | 'DeleteIncompleteData' >> beam.ParDo(DiscardIncompleteDoFn())
+                | 'TransformData' >> beam.ParDo(TransformData())
+                | 'Predict' >> beam.ParDo(Predict(model))
+        )
+        # write results
+        write_results(output_type, data)
+        # run the pipeline
+        p.run().wait_until_finish()
+
+
 if __name__ == '__main__':
     run()
