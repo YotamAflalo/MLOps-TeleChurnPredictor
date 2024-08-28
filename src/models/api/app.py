@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends,HTTPException
 from sqlalchemy.orm import Session # for connecting to the database
 import pickle
 from pydantic import BaseModel, Extra #to ensure the integrity of the input
@@ -70,8 +70,13 @@ if not IS_TESTING:
 
         id = Column(Integer, primary_key=True, index=True)
         timestamp = Column(DateTime, default=datetime.now)
-        request_data = Column(JSON)
-        prediction = Column(Integer)
+        TotalCharges = Column(String, nullable=True)
+        Contract = Column(String, nullable=True)
+        PhoneService = Column(String, nullable=True)
+        tenure = Column(Integer, nullable=True)
+        prediction = Column(Integer, nullable=True)
+        error = Column(String, nullable=True)
+        request_data = Column(JSON, nullable=True)
 
     Base.metadata.create_all(bind=engine)
 
@@ -90,6 +95,7 @@ if not IS_TESTING:
         if retries == 0:
             db.close()
             raise Exception("Could not connect to the database after multiple attempts")
+        db.close()
 else:
     def get_db():
         pass
@@ -109,24 +115,43 @@ def read_root():
 
 @app.post("/predict/")  
 def predict(pred: Prediction, db: Session = Depends(get_db)):
-    with open('models/churn_model.pickle', 'rb') as f:
-        rf_model = pickle.load(f)
-    input_data = pd.DataFrame([pred.dict(by_alias=True)])
-    handler = load_custom_handler('models/missing_value_handler_original_data.pkl')
-    input_data = handler.transform(input_data)
+    # Extract the full JSON input, including any extra fields
+    full_input = pred.dict(exclude_unset=True)
     
-    prediction_result = rf_model.predict(input_data[result_columns])
-    
+    # Extract only the relevant fields for prediction
+    relevant_fields = {k: v for k, v in full_input.items() if k in Prediction.__annotations__}
+
+    log_entry = APILog(
+        TotalCharges=relevant_fields.get('TotalCharges'),
+        Contract=relevant_fields.get('Contract'),
+        PhoneService=relevant_fields.get('PhoneService'),
+        tenure=relevant_fields.get('tenure'),
+        request_data=full_input  # Store the full JSON input
+    )
+
+    try:
+        with open('models/churn_model.pickle', 'rb') as f:
+            rf_model = pickle.load(f)
+        
+        input_df = pd.DataFrame([relevant_fields])
+        handler = load_custom_handler('models/missing_value_handler_original_data.pkl')
+        input_df = handler.transform(input_df)
+        
+        prediction_result = rf_model.predict(input_df[result_columns])
+        log_entry.prediction = int(prediction_result[0])
+    except Exception as e:
+        log_entry.error = str(e)
+
     if not IS_TESTING:
-        # Store the request and prediction in the database
-        log_entry = APILog(
-            request_data=pred.dict(),
-            prediction=int(prediction_result[0])
-        )
         db.add(log_entry)
         db.commit()
 
-    return {"prediction": int(prediction_result[0])}
+    if log_entry.prediction is not None:
+        return {"prediction": int(prediction_result[0])}
+    else:
+        raise HTTPException(status_code=500, detail="Prediction failed")
+    
+    
 
 Instrumentator().instrument(app).expose(app)
 
