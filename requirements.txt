@@ -12,3 +12,7 @@ psycopg2-binary
 pytest #for testing the api
 requests #for testing the api
 httpx #for testing the api
+
+whylogs==1.1.45 #for loging the api
+schedule==1.1.0
+pytz
