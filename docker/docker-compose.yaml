@@ -16,7 +16,10 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/api_logs
       - TESTING=False
-    command: uvicorn app.app:app --host 0.0.0.0 --port 8005
+      - WHYLABS_API_KEY=ZZZhY9vhvy.l764MW6fPuUBIsQ5Nz22KDnb9s7JsJoRPUirpAnljqE7yGTBt5NnW
+      - WHYLABS_ORG_ID=org-DCZmkU
+      - WHYLABS_DATASET_ID=model-3
+    #command: uvicorn app.app:app --host 0.0.0.0 --port 8005
 
   db:
     image: postgres:13

@@ -47,25 +47,11 @@ class Prediction(BaseModel):
         allow_population_by_field_name = True
         extra = Extra.allow 
 
-#connecting to the db
-# DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
-# Check if we're running in a test environment
+
 
 IS_TESTING = os.environ.get('TESTING') == 'True'
-
-if not IS_TESTING:
-    print('api activate - not in test mode')
-    # Use SQLite for testing
-    # DATABASE_URL = "sqlite:///:memory:"
-# else:
-    # Use PostgreSQL for production
-    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
-    engine = create_engine(DATABASE_URL)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-    Base = declarative_base()
-
-    class APILog(Base):
+Base = declarative_base()
+class APILog(Base):
         __tablename__ = "api_logs"
 
         id = Column(Integer, primary_key=True, index=True)
@@ -77,6 +63,17 @@ if not IS_TESTING:
         prediction = Column(Integer, nullable=True)
         error = Column(String, nullable=True)
         request_data = Column(JSON, nullable=True)
+
+
+if not IS_TESTING:
+    print('api activate - not in test mode')
+    # Use SQLite for testing
+    # DATABASE_URL = "sqlite:///:memory:"
+# else:
+    # Use PostgreSQL for production
+    DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db:5432/api_logs")
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     Base.metadata.create_all(bind=engine)
 

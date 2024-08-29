@@ -9,5 +9,8 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY src/models/api /code/app
 
-COPY . /code/ 
-
+COPY . /code/
+ENV TZ=Asia/Jerusalem
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# Start both the API and the daily logging script
+CMD ["sh", "-c", "python app/daily-data-logger.py & uvicorn app.app:app --host 0.0.0.0 --port 8005"]
