@@ -54,7 +54,7 @@ services:
       - example-network
     command: >
       /bin/bash -c "
-      PGPASSWORD=password psql -v ON_ERROR_STOP=1 --host=db --port=5432 --username=user --dbname=api_logs -f /code/data/init_tables.sql;
+      python /code/src/models/batch/create_tables.py &&
       python /code/src/models/batch/beam_processing.py"
 
   prometheus:
