@@ -1,4 +1,4 @@
-apache-beam
+apache-beam[gcp,sql]
 pandas 
 scikit-learn == 1.2.2
 psycopg2-binary==2.9.3

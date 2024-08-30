@@ -1,5 +1,14 @@
-# Use an official Python runtime as a parent image
 FROM python:3.9-slim
+
+# Install Java and wget
+RUN apt-get update && \
+    apt-get install -y default-jdk wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set JAVA_HOME
+ENV JAVA_HOME /usr/lib/jvm/java-default-jdk
+ENV PATH $PATH:$JAVA_HOME/bin
 
 # Set the working directory in the container
 WORKDIR /code
@@ -10,14 +19,16 @@ COPY . /code
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements_batch.txt
 
-# Install Apache Beam and JDBC dependencies
-RUN pip install apache-beam[gcp,sql] psycopg2-binary
+# Download PostgreSQL JDBC driver
+RUN apt-get update && apt-get install -y curl
+RUN curl -L https://jdbc.postgresql.org/download/postgresql-42.2.23.jar -o /postgresql-42.2.23.jar
 
 # Make sure the script is executable
 RUN chmod +x /code/src/models/batch/beam_processing.py
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV CLASSPATH=/postgresql-42.2.23.jar
 
 # Run beam_processing.py when the container launches
 CMD ["python", "/code/src/models/batch/beam_processing.py"]
