@@ -53,6 +53,9 @@ services:
       - ../data/batch_results:/code/data/batch_results
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/api_logs
+      - EXPANSION_SERVICE=batch:8097
+      - TESTING=False
+      - PYTHONPATH=/code
     networks:
       - example-network
     command: >

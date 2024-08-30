@@ -1,33 +1,23 @@
-FROM python:3.10-slim
-LABEL maintainer="Roey <roey.zalta@gmail.com>"
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
+# Set the working directory in the container
 WORKDIR /code
 
-# Install Java from a different repository
-RUN apt-get update && \
-    apt-get install -y wget gnupg2 && \
-    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add - && \
-    echo "deb https://packages.adoptium.net/artifactory/deb/ buster main" > /etc/apt/sources.list.d/adoptium.list && \
-    apt-get update && \
-    apt-get install -y temurin-11-jdk postgresql-client && \
-    apt-get clean
+# Copy the current directory contents into the container at /code
+COPY . /code
 
-# Set JAVA_HOME environment variable
-ENV JAVA_HOME /usr/lib/jvm/temurin-11-jdk-amd64
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements_batch.txt
 
-# Verify Java installation
-RUN java -version
+# Install Apache Beam and JDBC dependencies
+RUN pip install apache-beam[gcp,sql] psycopg2-binary
 
-# Install Python dependencies
-COPY ../requirements_batch.txt .
-RUN pip install --no-cache-dir --upgrade -r /code/requirements_batch.txt
+# Make sure the script is executable
+RUN chmod +x /code/src/models/batch/beam_processing.py
 
-# Copy application code
-COPY src/models/batch /code/app
-COPY . /code/
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
 
-# Set the PYTHONPATH
-ENV PYTHONPATH=/code
-
-# Set the default command to run the application
-CMD ["python", "src/models/batch/beam_processing.py"]
+# Run beam_processing.py when the container launches
+CMD ["python", "/code/src/models/batch/beam_processing.py"]
