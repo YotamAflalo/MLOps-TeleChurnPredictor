@@ -51,11 +51,16 @@ services:
     volumes:
       - ../data/batch_input:/code/data/batch_input
       - ../data/batch_results:/code/data/batch_results
+    env_file:
+    - .env
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/api_logs
       - EXPANSION_SERVICE=batch:8097
       - TESTING=False
       - PYTHONPATH=/code
+      - WHYLABS_API_KEY=ZZZhY9vhvy.l764MW6fPuUBIsQ5Nz22KDnb9s7JsJoRPUirpAnljqE7yGTBt5NnW
+      - WHYLABS_ORG_ID=org-DCZmkU
+      - WHYLABS_DATASET_ID=model-4
     networks:
       - example-network
     command: >

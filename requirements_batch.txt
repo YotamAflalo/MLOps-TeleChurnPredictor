@@ -2,3 +2,5 @@ apache-beam[gcp,sql]
 pandas 
 scikit-learn == 1.2.2
 psycopg2-binary==2.9.3
+whylogs==1.1.45 #for loging the batch processing
+sqlalchemy
