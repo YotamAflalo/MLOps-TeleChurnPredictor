@@ -6,7 +6,12 @@ from unittest.mock import patch, MagicMock
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
+import sys
+import os
 
+# Add the project root directory to the Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
 # Import the functions to test
 from src.models.batch.beam_processing import run, parse_csv_line, TransformData, Predict
 
