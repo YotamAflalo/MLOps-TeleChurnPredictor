@@ -17,7 +17,7 @@ services:
       - TESTING=False
       - WHYLABS_API_KEY=ZZZhY9vhvy.l764MW6fPuUBIsQ5Nz22KDnb9s7JsJoRPUirpAnljqE7yGTBt5NnW
       - WHYLABS_ORG_ID=org-DCZmkU
-      - WHYLABS_DATASET_ID=model-3
+      - WHYLABS_API_DATASET_ID=model-3
     #command: uvicorn app.app:app --host 0.0.0.0 --port 8005
 
   db:
