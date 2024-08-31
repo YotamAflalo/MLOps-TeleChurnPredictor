@@ -1,13 +1,15 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.io.jdbc import WriteToJdbc
 import pandas as pd
 import pickle
 import datetime
 import os
 import csv
 from datetime import datetime, timedelta
-from config.config import DRIVER_CLASS_NAME,PASSWORD, JDBC_URL, USERNAME, PASSWORD, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE
+import whylogs as why
+from sqlalchemy import create_engine, Table, Column, Integer, String, Float, DateTime, MetaData
+from sqlalchemy.orm import sessionmaker
+from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, PASSWORD, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,11 +18,41 @@ INPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_input')
 MODEL_PATH = os.path.join(current_dir, '..', '..', '..', 'models', 'churn_model.pickle')
 OUTPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_results')
 
+# Define whylogs configuration using environment variables
+whylabs_org_id = os.environ.get("WHYLABS_ORG_ID")
+whylabs_api_key = os.environ.get("WHYLABS_API_KEY")
+whylabs_dataset_id = os.environ.get("WHYLABS_DATASET_ID")
+
+# Set the environment variables for whylogs
+os.environ["WHYLABS_DEFAULT_ORG_ID"] = whylabs_org_id
+os.environ["WHYLABS_API_KEY"] = whylabs_api_key
+os.environ["WHYLABS_DEFAULT_DATASET_ID"] = whylabs_dataset_id
+
+
+# Define the SQLAlchemy engine
+engine = create_engine(JDBC_URL)
+Session = sessionmaker(bind=engine)
 
 def discard_incomplete(data):
     """Filters out records that don't have an information about Contract type."""
     return len(data['Contract']) > 0 and len(data['tenure']) > 0
 
+# Define the table structure
+metadata = MetaData()
+output_table = Table(OUTPUT_TABLE, metadata,
+    Column('id', Integer, primary_key=True),
+    Column('TotalCharges', Float),
+    Column('Month-to-month', Integer),
+    Column('One year', Integer),
+    Column('Two year', Integer),
+    Column('PhoneService', Integer),
+    Column('tenure', Integer),
+    Column('prediction', Integer),
+    Column('timestamp', DateTime, default=datetime.utcnow)
+)
+
+# Create the table if it doesn't exist
+metadata.create_all(engine)
 
 class DiscardIncompleteDoFn(beam.DoFn):
     def process(self, element):
@@ -107,18 +139,25 @@ def read_from_db(pipeline, db_url=JDBC_URL, table_name=INPUT_TABLE, username=USE
 
 
 
-def write_to_db(data, db_url=JDBC_URL, table_name=OUTPUT_TABLE, username=USERNAME, password=PASSWORD):
+def write_to_db(data):
+    def process(element):
+        session = Session()
+        try:
+            new_record = output_table.insert().values(**element)
+            session.execute(new_record)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Error writing to database: {str(e)}")
+        finally:
+            session.close()
+
     return (
         data
-        | 'WriteToDB' >> WriteToJdbc(
-            table_name=INPUT_TABLE,
-            driver_class_name=DRIVER_CLASS_NAME,
-            jdbc_url=JDBC_URL,
-            username=USERNAME,
-            password=PASSWORD
-        )
+        | 'Write to DB' >> beam.Map(process)
     )
-def write_results(output_type,data):
+
+def write_results(output_type, data):
     time = datetime.now().strftime('%d_%H_%M')
     if 'csv' in output_type:
         output_path = os.path.join(OUTPUT_DIR, f"output_{time}.csv")
@@ -137,6 +176,10 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
     
     if "csv" in input_type or "both" in input_type :
         for file in os.listdir(INPUT_DIR):
+            # log csv to whylogs
+            dataset = pd.read_csv(os.path.join(INPUT_DIR, file))
+            results = why.log(dataset)
+            results.writer("whylabs").write()
             p = beam.Pipeline(options=options)
             if file.endswith(".csv"):
                 DATA_PATH = os.path.join(INPUT_DIR, file)
@@ -154,10 +197,16 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
                 write_results(output_type,data)
                 # run the pipeline
                 p.run().wait_until_finish()
+                #upload results to WhyLabs
+                results = why.log(data)
+                results.writer("whylabs").write()
                 os.remove(DATA_PATH)
                 print(f"File {DATA_PATH} deleted.")
     
     if "db" in input_type or "both" in input_type  :
+        # log db to whylogs
+        data = pd.read_sql_query(f"SELECT * FROM {INPUT_TABLE}", engine)
+        data.to_whylogs().log()
         p = beam.Pipeline(options=options)
         print("Reading from database")
         data = read_from_db(p)
@@ -169,6 +218,9 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
         )
         # write results
         write_results(output_type, data)
+        # upload results to WhyLabs
+        results = why.log(data)
+        results.writer("whylabs").write()
         # run the pipeline
         p.run().wait_until_finish()
 
