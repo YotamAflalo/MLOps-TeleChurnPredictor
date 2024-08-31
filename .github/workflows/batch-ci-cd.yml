@@ -27,7 +27,7 @@ jobs:
         pip install pytest
 
     - name: Run tests
-      run: pytest tests/test_beam_processing.py
+      run: pytest tests/test_batch.py
 
     - name: Build Docker image
       run: docker build -t yotam433/mid_project_batch:latest -f docker/Dockerfile.batch .
