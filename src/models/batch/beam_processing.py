@@ -1,18 +1,13 @@
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.io.jdbc import WriteToJdbc
 import pandas as pd
 import pickle
 import datetime
 import os
 import csv
-from apache_beam.io.jdbc import ReadFromJdbc, WriteToJdbc
-
-# Import configuration
-from config.config import (
-    INPUT_TYPE, OUTPUT_TYPE, INPUT_DIR, MODEL_PATH, OUTPUT_DIR,
-    DRIVER_CLASS_NAME, JDBC_URL, USERNAME, PASSWORD,
-    INPUT_TABLE, OUTPUT_TABLE, REQUIRED_COLUMNS, OPTIONAL_COLUMNS
-)
+from datetime import datetime, timedelta
+from config.config import DRIVER_CLASS_NAME,PASSWORD, JDBC_URL, USERNAME, PASSWORD, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -22,17 +17,18 @@ MODEL_PATH = os.path.join(current_dir, '..', '..', '..', 'models', 'churn_model.
 OUTPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_results')
 
 
+def discard_incomplete(data):
+    """Filters out records that don't have an information about Contract type."""
+    return len(data['Contract']) > 0 and len(data['tenure']) > 0
 
-# Load the pre-trained model
-with open(MODEL_PATH, 'rb') as f:
-    model = pickle.load(f)
 
-class DisCardIncompleteDofn(beam.DoFn):
+class DiscardIncompleteDoFn(beam.DoFn):
     def process(self, element):
         dataset = pd.DataFrame([element])
         dataset.reset_index(inplace=True)
-        dataset.dropna(axis=1, subset=REQUIRED_COLUMNS)
+        dataset.dropna(axis=1, subset=['Contract', 'tenure'])
         return [dataset.to_dict('records')[0]]
+
 
 def validate_and_transform(value, expected_type, default_value):
     if value in [' ', '', None]:
@@ -43,18 +39,23 @@ def validate_and_transform(value, expected_type, default_value):
         print(f"Warning: Invalid value {value}. Using default value {default_value}")
         return default_value
 
+
 class TransformData(beam.DoFn):
     def process(self, element):
         dataset = pd.DataFrame([element])
         
-        for column in OPTIONAL_COLUMNS:
-            if column == 'TotalCharges':
-                dataset[column] = dataset[column].apply(
+        if 'TotalCharges' in dataset.columns:
+            dataset['TotalCharges'] = dataset['TotalCharges'].apply(
                     lambda x: validate_and_transform(x, float, 2279.0)
-                )
-            elif column == 'PhoneService':
-                dataset[column] = dataset[column].fillna('No')
-                dataset[column] = dataset[column].map(lambda x: 1 if x == 'Yes' else 0)
+            )
+        else:
+            dataset['TotalCharges'] = 2279.0
+        
+        if 'PhoneService' in dataset.columns:
+            dataset['PhoneService'] = dataset['PhoneService'].fillna('No')
+            dataset['PhoneService'] = dataset['PhoneService'].map(lambda x: 1 if x == 'Yes' else 0)
+        else:
+            dataset['PhoneService'] = 0
         
         dataset = dataset.join(pd.get_dummies(dataset['Contract']).astype(int))
         
@@ -64,13 +65,6 @@ class TransformData(beam.DoFn):
         
         return [dataset.to_dict('records')[0]]
 
-class Predict(beam.DoFn):
-    def process(self, element):
-        dataset = pd.DataFrame([element])
-        result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
-        prediction = model.predict(dataset[result_columns])
-        element['prediction'] = prediction[0]
-        return [element]
 
 def get_csv_headers(file_path):
     with open(file_path, 'r') as csvfile:
@@ -78,70 +72,106 @@ def get_csv_headers(file_path):
         headers = next(csv_reader)
     return headers
 
-def run():
-    options = PipelineOptions()
-    p = beam.Pipeline(options=options)
 
-    # Input
-    if "csv" in INPUT_TYPE or "both" in INPUT_TYPE:
-        csv_files = [os.path.join(INPUT_DIR, f) for f in os.listdir(INPUT_DIR) if f.endswith(".csv")]
-        headers = get_csv_headers(csv_files[0])
-        csv_data = (
-            p
-            | "ReadCSV" >> beam.Create(csv_files)
-            | "ReadCSVFiles" >> beam.FlatMap(lambda file: beam.io.ReadFromText(file, skip_header_lines=1))
-            | "ParseCSV" >> beam.Map(lambda line: dict(zip(headers, line.split(','))))
-        )
+class Predict(beam.DoFn):
+    def __init__(self, model):
+        self.model = model
+    
+    def process(self, element):
+        dataset = pd.DataFrame([element])
+        result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
+        prediction = self.model.predict(dataset[result_columns])
+        element['prediction'] = prediction[0]
+        return [element]
 
-    if "db" in INPUT_TYPE or "both" in INPUT_TYPE:
-        db_data = (
-            p
-            | "ReadFromJDBC" >> ReadFromJdbc(
-                table_name=INPUT_TABLE,
-                driver_class_name=DRIVER_CLASS_NAME,
-                jdbc_url=JDBC_URL,
-                username=USERNAME,
-                password=PASSWORD
-            )
-        )
 
-    # Combine data sources if both are used
-    if "both" in INPUT_TYPE:
-        data = (
-            (csv_data, db_data)
-            | "MergeInputs" >> beam.Flatten()
-        )
-    elif "csv" in INPUT_TYPE:
-        data = csv_data
-    else:
-        data = db_data
+def parse_csv_line(line, headers):
+    values = line.split(',')
+    return dict(zip(headers, values))
 
-    # Processing
-    processed_data = (
-        data
-        | "DeleteIncompleteData" >> beam.ParDo(DisCardIncompleteDofn())
-        | "TransformData" >> beam.ParDo(TransformData())
-        | "Predict" >> beam.ParDo(Predict())
+
+def read_from_db(pipeline, db_url=JDBC_URL, table_name=INPUT_TABLE, username=USERNAME, password=PASSWORD):
+    last_24_hours = datetime.now() - timedelta(hours=24)
+    query = f"SELECT * FROM {table_name} WHERE timestamp_column >= '{last_24_hours}'"
+    return (
+            pipeline
+            | 'ReadFromDB' >> beam.io.ReadFromJdbc(
+            table_name=table_name,
+            query=query,
+            driver_class_name='org.postgresql.Driver',
+            jdbc_url=db_url,
+            username=username,
+            password=password
+    )
     )
 
-    # Output
-    if "csv" in OUTPUT_TYPE or "both" in OUTPUT_TYPE:
-        time = datetime.datetime.now().strftime('%d_%H_%M')
-        processed_data | "WriteToCSV" >> beam.io.WriteToText(
-            os.path.join(OUTPUT_DIR, f'results_{time}.csv')
-        )
 
-    if "db" in OUTPUT_TYPE or "both" in OUTPUT_TYPE:
-        processed_data | "WriteToDB" >> WriteToJdbc(
-            table_name=OUTPUT_TABLE,
+
+def write_to_db(data, db_url=JDBC_URL, table_name=OUTPUT_TABLE, username=USERNAME, password=PASSWORD):
+    return (
+        data
+        | 'WriteToDB' >> WriteToJdbc(
+            table_name=INPUT_TABLE,
             driver_class_name=DRIVER_CLASS_NAME,
             jdbc_url=JDBC_URL,
             username=USERNAME,
-            password=PASSWORD,
-            expansion_service='localhost:8097'
+            password=PASSWORD
         )
+    )
+def write_results(output_type,data):
+    time = datetime.now().strftime('%d_%H_%M')
+    if 'csv' in output_type:
+        output_path = os.path.join(OUTPUT_DIR, f"output_{time}.csv")
+        data = (data | 'WriteToCsv' >> beam.io.WriteToText(output_path))
+        print(f"Results written to {output_path}")
+    if 'db' in output_type:
+        write_to_db(data)
+        print(f"Results written to {OUTPUT_TABLE}")
 
-    p.run().wait_until_finish()
+def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table_name=None, output_table_name=None,
+        driver_class_name=DRIVER_CLASS_NAME, jdbc_url=JDBC_URL, username=USERNAME, password=PASSWORD):
+    with open(MODEL_PATH, 'rb') as f:
+        model = pickle.load(f)
+    
+    options = PipelineOptions()
+    
+    if "csv" in input_type or "both" in input_type :
+        for file in os.listdir(INPUT_DIR):
+            p = beam.Pipeline(options=options)
+            if file.endswith(".csv"):
+                DATA_PATH = os.path.join(INPUT_DIR, file)
+                print(f"Processing file: {DATA_PATH}")
+                headers = get_csv_headers(DATA_PATH)
+                data = (
+                        p
+                        | 'ReadData' >> beam.io.ReadFromText(DATA_PATH, skip_header_lines=1)
+                        | 'ParseCSV' >> beam.Map(lambda line: parse_csv_line(line, headers))
+                        | 'DeleteIncompleteData' >> beam.Filter(discard_incomplete)
+                        | 'TransformData' >> beam.ParDo(TransformData())
+                        | 'Predict' >> beam.ParDo(Predict(model))
+                )
+                # write results
+                write_results(output_type,data)
+                # run the pipeline
+                p.run().wait_until_finish()
+                os.remove(DATA_PATH)
+                print(f"File {DATA_PATH} deleted.")
+    
+    if "db" in input_type or "both" in input_type  :
+        p = beam.Pipeline(options=options)
+        print("Reading from database")
+        data = read_from_db(p)
+        data = (
+                data
+                | 'DeleteIncompleteData' >> beam.ParDo(DiscardIncompleteDoFn())
+                | 'TransformData' >> beam.ParDo(TransformData())
+                | 'Predict' >> beam.ParDo(Predict(model))
+        )
+        # write results
+        write_results(output_type, data)
+        # run the pipeline
+        p.run().wait_until_finish()
+
 
 if __name__ == '__main__':
     run()
