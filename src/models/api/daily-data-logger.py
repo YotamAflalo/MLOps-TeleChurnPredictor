@@ -15,7 +15,7 @@ engine = create_engine(DATABASE_URL)
 # WhyLabs configuration
 WHYLABS_API_KEY = os.environ.get("WHYLABS_API_KEY",'ZZZhY9vhvy.l764MW6fPuUBIsQ5Nz22KDnb9s7JsJoRPUirpAnljqE7yGTBt5NnW')
 WHYLABS_ORG_ID = os.environ.get("WHYLABS_ORG_ID")
-WHYLABS_DATASET_ID = os.environ.get("WHYLABS_DATASET_ID")
+WHYLABS_DATASET_ID = os.environ.get("WHYLABS_API_DATASET_ID")
 
 # Set the timezone to Israel Standard Time
 israel_tz = pytz.timezone('Asia/Jerusalem')
