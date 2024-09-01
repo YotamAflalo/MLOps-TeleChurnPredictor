@@ -1,5 +1,5 @@
 apache-beam[gcp,sql]==2.58.1
-pandas=2.2.2
+pandas==2.2.2
 scikit-learn == 1.2.2
 psycopg2-binary==2.9.3
 whylogs==1.1.45 #for loging the batch processing

@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import pickle
 import datetime
+import time
+import shutil
 import os
 import csv
 from datetime import datetime, timedelta
@@ -17,7 +19,7 @@ import sys
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(project_root)
 
-from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE
+from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE, JDBC_URL
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,7 +38,6 @@ if whylabs_org_id and whylabs_api_key and whylabs_dataset_id:
 else:
     print("Warning: WhyLabs environment variables are not set. WhyLabs logging will be disabled.")
 
-JDBC_URL = 'postgresql://user:password@db:5432/api_logs'
 engine = create_engine(JDBC_URL)
 Session = sessionmaker(bind=engine)
 
@@ -259,9 +260,6 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
                 print(f"File {DATA_PATH} deleted.")
     
     if "db" in input_type or "both" in input_type:
-        data = pd.read_sql_query(f"SELECT * FROM {INPUT_TABLE}", engine)
-        data.to_whylogs().log()
-        
         p = beam.Pipeline(options=options)
         print("Reading from database")
         data = read_from_db(p)
@@ -273,17 +271,16 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
         )
         
         write_results(output_type, data)
+        
         # Log the data to WhyLabs
         results = why.log(data[['customerID', 'prediction', 'timestamp']])
         results.writer("whylabs").write()
 
         # Run the pipeline
         p.run().wait_until_finish()
-        # delete the csv files from the input directory
-        for file in os.listdir(INPUT_DIR):
-            if file.endswith(".csv"):
-                os.remove(os.path.join(INPUT_DIR, file))
-                print(f"File {file} deleted.")
+
+        print("Batch processing completed.")
+    
 
 if __name__ == '__main__':
     run()
