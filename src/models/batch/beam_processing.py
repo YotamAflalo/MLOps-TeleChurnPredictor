@@ -20,13 +20,16 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.append(project_root)
 
 from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE, JDBC_URL
+IS_TESTING = os.environ.get('TESTING',"False") == 'True'
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 INPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_input')
 MODEL_PATH = os.path.join(current_dir, '..', '..', '..', 'models', 'churn_model.pickle')
 OUTPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_results')
-
+if IS_TESTING:
+    INPUT_DIR = 'csv'
+    OUTPUT_DIR = 'csv'
 whylabs_org_id = os.environ.get("WHYLABS_ORG_ID")
 whylabs_api_key = os.environ.get("WHYLABS_API_KEY")
 whylabs_dataset_id = os.environ.get("WHYLABS_DATASET_ID")
@@ -215,8 +218,9 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
     if "csv" in input_type or "both" in input_type:
         for file in os.listdir(INPUT_DIR):
             dataset = pd.read_csv(os.path.join(INPUT_DIR, file))
-            results = why.log(dataset)
-            results.writer("whylabs").write()
+            if not IS_TESTING:
+                results = why.log(dataset)
+                results.writer("whylabs").write()
             
             p = beam.Pipeline(options=options)
             if file.endswith(".csv"):
@@ -241,11 +245,12 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
                 
                 
                 #return collected_data | beam.Map(apply_whylogs)
-                try:
-                    results = collected_data | beam.Map(apply_whylogs)
-                    results.writer("whylabs").write()
-                except:
-                    print("eror in writing the results to whylabs")
+                if not IS_TESTING:
+                    try:
+                        results = collected_data | beam.Map(apply_whylogs)
+                        results.writer("whylabs").write()
+                    except:
+                        print("eror in writing the results to whylabs")
                 os.remove(DATA_PATH)
                 print(f"File {DATA_PATH} deleted.")
     
@@ -261,12 +266,13 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
         )
         
         write_results(output_type, data)
-        try:
-            # Log the data to WhyLabs
-            results = why.log(data[['customerID','TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure', 'prediction', 'timestamp']])
-            results.writer("whylabs").write()
-        except:
-            print("eror in writing the results to whylabs")
+        if not IS_TESTING:
+            try:
+                # Log the data to WhyLabs
+                results = why.log(data[['customerID','TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure', 'prediction', 'timestamp']])
+                results.writer("whylabs").write()
+            except:
+                print("eror in writing the results to whylabs")
         # Run the pipeline
 
         p.run().wait_until_finish()

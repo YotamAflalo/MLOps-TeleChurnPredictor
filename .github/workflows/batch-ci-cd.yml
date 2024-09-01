@@ -27,6 +27,8 @@ jobs:
         pip install pytest
 
     - name: Run tests
+      env:
+        TESTING: 'True'
       run: pytest tests/test_batch.py
 
     - name: Build Docker image
