@@ -19,7 +19,7 @@ import sys
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(project_root)
 
-from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE, JDBC_URL
+from config.config import result_columns, DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE, JDBC_URL
 IS_TESTING = os.environ.get('TESTING',"False") == 'True'
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -93,11 +93,17 @@ class TransformData(beam.DoFn):
         else:
             dataset['PhoneService'] = 0
         
-        if 'Contract' in dataset.columns:
-            dataset['Contract'] = dataset['Contract'].fillna('Unknown')
-        else:
-            dataset['Contract'] = 'Unknown'
-        
+        # if 'Contract' in dataset.columns:
+        #     dataset['Contract'] = dataset['Contract'].fillna('Unknown')
+        # else:
+        #     dataset['Contract'] = 'Unknown'
+        contract_dummies = pd.get_dummies(dataset['Contract'])
+        dataset = pd.concat([dataset, contract_dummies], axis=1)
+
+        for contract_type in ['Month-to-month', 'One year', 'Two year']:
+            if contract_type not in dataset.columns:
+                dataset[contract_type] = 0
+
         return [dataset.to_dict('records')[0]]
 
 def get_csv_headers(file_path):
@@ -115,15 +121,8 @@ class Predict(beam.DoFn):
             return []
         
         dataset = pd.DataFrame([element])
-        contract_dummies = pd.get_dummies(dataset['Contract'])
-        dataset = pd.concat([dataset, contract_dummies], axis=1)
 
-        
-        for contract_type in ['Month-to-month', 'One year', 'Two year']:
-            if contract_type not in dataset.columns:
-                dataset[contract_type] = 0
-        
-        result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
+        # result_columns = ['TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure']
         prediction = self.model.predict(dataset[result_columns])
         element['prediction'] = float(prediction[0])
         return [element]
