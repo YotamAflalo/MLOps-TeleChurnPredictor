@@ -9,3 +9,6 @@ __pycache__/
 .vscode/
 venv/
 src\models\batch\output\results_*.csv
+# ignore the results in the batch_input and batch_output directories
+data/batch_input/*
+data/batch_output/*
