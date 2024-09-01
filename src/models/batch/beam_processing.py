@@ -33,27 +33,27 @@ if IS_TESTING:
 whylabs_org_id = os.environ.get("WHYLABS_ORG_ID")
 whylabs_api_key = os.environ.get("WHYLABS_API_KEY")
 whylabs_dataset_id = os.environ.get("WHYLABS_DATASET_ID")
+if not IS_TESTING:
+    engine = create_engine(JDBC_URL)
+    Session = sessionmaker(bind=engine)
 
-engine = create_engine(JDBC_URL)
-Session = sessionmaker(bind=engine)
+    def discard_incomplete(data):
+        return len(data['Contract']) > 0 and len(data['tenure']) > 0
 
-def discard_incomplete(data):
-    return len(data['Contract']) > 0 and len(data['tenure']) > 0
+    metadata = MetaData()
+    output_table = Table(OUTPUT_TABLE, metadata,
+        Column('customerID', String, primary_key=True, nullable=False),
+        Column('TotalCharges', Float),
+        Column('MonthlyCharges', Float),
+        Column('tenure', Integer),
+        Column('Contract', String),
+        Column('PhoneService', Integer),
+        Column('prediction', Float),
+        Column('timestamp', DateTime, default=datetime.utcnow)
+    )
 
-metadata = MetaData()
-output_table = Table(OUTPUT_TABLE, metadata,
-    Column('customerID', String, primary_key=True, nullable=False),
-    Column('TotalCharges', Float),
-    Column('MonthlyCharges', Float),
-    Column('tenure', Integer),
-    Column('Contract', String),
-    Column('PhoneService', Integer),
-    Column('prediction', Float),
-    Column('timestamp', DateTime, default=datetime.utcnow)
-)
-
-metadata.drop_all(engine, tables=[output_table])
-metadata.create_all(engine)
+    metadata.drop_all(engine, tables=[output_table])
+    metadata.create_all(engine)
 
 class DiscardIncompleteDoFn(beam.DoFn):
     def process(self, element):
