@@ -20,12 +20,114 @@ This project implements a machine learning model for customer churn prediction, 
 3. **Model Execution**: Running the RandomForestClassifier model on preprocessed data
 4. **Output**: Processed data and predictions saved in the `data/batch_results` folder and/or database
 
-## Prerrequisites
+### System Architecture Diagram
+
+```mermaid
+graph TD
+    A[api] -->|depends on| B[db]
+    A -->|connects to| C[prometheus]
+    D[batch] -->|depends on| B
+    C -->|visualized by| E[grafana]
+    F[network]
+    
+    A -->|part of| F
+    B -->|part of| F
+    C -->|part of| F
+    D -->|part of| F
+    E -->|part of| F
+    
+    subgraph Volumes
+        G[postgres_data]
+        H[grafana_data]
+    end
+    
+    B -->|uses| G
+    E -->|uses| H
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef service fill:#AED6F1,stroke:#3498DB,stroke-width:2px;
+    classDef db fill:#F9E79F,stroke:#F4D03F,stroke-width:2px;
+    classDef monitoring fill:#D5F5E3,stroke:#2ECC71,stroke-width:2px;
+    classDef network fill:#FADBD8,stroke:#E74C3C,stroke-width:2px;
+    classDef volume fill:#8E44AD,stroke:#4A235A,stroke-width:2px,color:#FFFFFF;
+
+    class A,D service;
+    class B db;
+    class C,E monitoring;
+    class F network;
+    class G,H volume;
+```
+
+### Docker Compose Service Architecture
+
+```mermaid
+graph TD
+    A[api] -->|depends on| B[db]
+    A -->|connects to| C[prometheus]
+    D[batch] -->|depends on| B
+    C -->|visualized by| E[grafana]
+    F[network]
+    
+    A -->|part of| F
+    B -->|part of| F
+    C -->|part of| F
+    D -->|part of| F
+    E -->|part of| F
+    
+    subgraph Volumes
+        G[postgres_data]
+        H[grafana_data]
+    end
+    
+    B -->|uses| G
+    E -->|uses| H
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef service fill:#AED6F1,stroke:#3498DB,stroke-width:2px;
+    classDef db fill:#F9E79F,stroke:#F4D03F,stroke-width:2px;
+    classDef monitoring fill:#D5F5E3,stroke:#2ECC71,stroke-width:2px;
+    classDef network fill:#FADBD8,stroke:#E74C3C,stroke-width:2px;
+    classDef volume fill:#8E44AD,stroke:#4A235A,stroke-width:2px,color:#FFFFFF;
+
+    class A,D service;
+    class B db;
+    class C,E monitoring;
+    class F network;
+    class G,H volume;
+```
+
+### API CI/CD Pipeline
+
+```mermaid
+graph TD
+    A[Push to main branch<br>or Pull Request] --> B[Check out code]
+    B --> C[Set up Python 3.10.12]
+    C --> D[Install dependencies]
+    D --> E[Run tests]
+    E --> F[Build Docker image]
+    F --> G{Is it a push<br>to main?}
+    G -->|Yes| H[Log in to Docker Hub]
+    H --> I[Push image to Docker Hub]
+    G -->|No| J[End]
+    I --> J
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef trigger fill:#ff9999,stroke:#333,stroke-width:2px;
+    classDef step fill:#99ccff,stroke:#333,stroke-width:2px;
+    classDef decision fill:#ffcc99,stroke:#333,stroke-width:2px;
+    classDef end fill:#ccff99,stroke:#333,stroke-width:2px;
+    
+    class A trigger;
+    class B,C,D,E,F,H,I step;
+    class G decision;
+    class J end;
+```
+
+## Prerequisites
 
 - Docker Desktop 
 - Git 
 - Github Account
-
 
 ## Getting Started
 
@@ -69,7 +171,6 @@ Expected response:
 ```
 (Indicates the client is not likely to churn soon)
 
-
 ## Batch Processing
 
 The batch processing pipeline utilizes Apache Beam for efficient data processing. It runs daily at 12 PM, performing the following steps:
@@ -79,7 +180,7 @@ The batch processing pipeline utilizes Apache Beam for efficient data processing
 3. Model execution using the pickled RandomForestClassifier
 4. Saving results back to the database or file system
 
-Configure the batch job settings in the ________________________ file.
+Configure the batch job settings in the 'config' file.
 
 ## Real-time API
 
@@ -115,7 +216,7 @@ PostgreSQL is used for storing predictions and raw data.
 
 ## Data Drift Monitoring
 
-Whylogs is implemented for data drift detection. Monitor drift metrics through the Grafana dashboard or custom reports generated in the `reports/` directory.
+Whylogs is implemented for data drift detection. Monitor metrics through the Grafana dashboard or custom reports generated in the Whylabs website.
 
 ## CI/CD Pipeline
 
@@ -125,16 +226,12 @@ The project includes a full CI/CD pipeline configured with GitHub Actions. View 
 
 To modify input parameters or other configurations, please refer to the configuration files in the `config/` directory.
 
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
 ## Acknowledgments
 
+[Add any acknowledgments here]
 
 For more information or support, please open an issue in the GitHub repository.
-
-
-
- 
