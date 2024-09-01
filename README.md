@@ -111,16 +111,16 @@ graph TD
     G -->|No| J[End]
     I --> J
 
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
-    classDef trigger fill:#ff9999,stroke:#333,stroke-width:2px;
-    classDef step fill:#99ccff,stroke:#333,stroke-width:2px;
-    classDef decision fill:#ffcc99,stroke:#333,stroke-width:2px;
-    classDef end fill:#ccff99,stroke:#333,stroke-width:2px;
-    
-    class A trigger;
-    class B,C,D,E,F,H,I step;
-    class G decision;
-    class J end;
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef trigger fill:#ff9999,stroke:#333,stroke-width:2px
+    classDef step fill:#99ccff,stroke:#333,stroke-width:2px
+    classDef decision fill:#ffcc99,stroke:#333,stroke-width:2px
+    classDef endClass fill:#ccff99,stroke:#333,stroke-width:2px
+
+    class A trigger
+    class B,C,D,E,F,H,I step
+    class G decision
+    class J endClass
 ```
 
 ## Prerequisites
