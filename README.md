@@ -2,7 +2,7 @@
 
 This project implements a machine learning model for customer churn prediction, utilizing FastAPI and Apache Beam. It includes a comprehensive MLOps pipeline with monitoring, batch processing, and CI/CD integration.
 
-The presenation of this project can be found here: [Gamma Link] (https://gamma.app/docs/Customer-Churn-Prediction-MLOps-System-klmmvju41ctqpmv)
+The presenation of this project can be found here: [Gamma Link](https://gamma.app/docs/Customer-Churn-Prediction-MLOps-System-klmmvju41ctqpmv)
 
 ## Features
 
