@@ -21,7 +21,6 @@ sys.path.append(project_root)
 
 from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE, JDBC_URL
 
-
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 INPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_input')
@@ -31,14 +30,6 @@ OUTPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_results'
 whylabs_org_id = os.environ.get("WHYLABS_ORG_ID")
 whylabs_api_key = os.environ.get("WHYLABS_API_KEY")
 whylabs_dataset_id = os.environ.get("WHYLABS_DATASET_ID")
-
-if whylabs_org_id and whylabs_api_key and whylabs_dataset_id:
-    os.environ["WHYLABS_DEFAULT_ORG_ID"] = whylabs_org_id
-    os.environ["WHYLABS_API_KEY"] = whylabs_api_key
-    os.environ["WHYLABS_DEFAULT_DATASET_ID"] = whylabs_dataset_id
-else:
-    print("Warning: WhyLabs environment variables are not set. WhyLabs logging will be disabled.")
-
 
 engine = create_engine(JDBC_URL)
 Session = sessionmaker(bind=engine)
@@ -121,13 +112,9 @@ class Predict(beam.DoFn):
             return []
         
         dataset = pd.DataFrame([element])
-        contract_dummies = pd.get_dummies(dataset['Contract'], prefix='Contract')
+        contract_dummies = pd.get_dummies(dataset['Contract'])
         dataset = pd.concat([dataset, contract_dummies], axis=1)
-        dataset = dataset.rename(columns={
-            'Contract_Month-to-month': 'Month-to-month',
-            'Contract_One year': 'One year',
-            'Contract_Two year': 'Two year'
-        })
+
         
         for contract_type in ['Month-to-month', 'One year', 'Two year']:
             if contract_type not in dataset.columns:
@@ -212,7 +199,12 @@ def select_fields(element):
         'prediction': element['prediction'],
         'timestamp': element['timestamp']
     }
-
+def apply_whylogs(collected_data):
+                    # Use the simplified whylogs v1 API to log the data
+                    results = why.log(collected_data)
+                    # Write the results to WhyLabs
+                    results.writer("whylabs").write()
+                    return results
 def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table_name=None, output_table_name=None,
         driver_class_name=DRIVER_CLASS_NAME, jdbc_url=JDBC_URL, username=USERNAME, password=PASSWORD):
     with open(MODEL_PATH, 'rb') as f:
@@ -246,19 +238,14 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
                 selected_data = data | beam.Map(select_fields)
                 collected_data = selected_data | beam.combiners.ToList()
 
-                def apply_whylogs(collected_data):
-                    # Use the simplified whylogs v1 API to log the data
-                    results = why.log(collected_data)
-                    # Write the results to WhyLabs
+                
+                
+                #return collected_data | beam.Map(apply_whylogs)
+                try:
+                    results = collected_data | beam.Map(apply_whylogs)
                     results.writer("whylabs").write()
-                    return results
-                
-                return collected_data | beam.Map(apply_whylogs)
-
-                results = collected_data | beam.Map(apply_whylogs)
-
-                results.writer("whylabs").write()
-                
+                except:
+                    print("eror in writing the results to whylabs")
                 os.remove(DATA_PATH)
                 print(f"File {DATA_PATH} deleted.")
     
@@ -274,15 +261,18 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
         )
         
         write_results(output_type, data)
-        
-        # Log the data to WhyLabs
-        results = why.log(data[['customerID', 'prediction', 'timestamp']])
-        results.writer("whylabs").write()
-
+        try:
+            # Log the data to WhyLabs
+            results = why.log(data[['customerID','TotalCharges', 'Month-to-month', 'One year', 'Two year', 'PhoneService', 'tenure', 'prediction', 'timestamp']])
+            results.writer("whylabs").write()
+        except:
+            print("eror in writing the results to whylabs")
         # Run the pipeline
+
         p.run().wait_until_finish()
 
         print("Batch processing completed.")
+    
 
 if __name__ == '__main__':
     run()
