@@ -14,7 +14,9 @@ from sqlalchemy import create_engine, Table, Column, Integer, String, Float, Dat
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 import sys
-
+import pytz
+from datetime import datetime, timedelta
+import time
 # Add the project root directory to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 sys.path.append(project_root)
@@ -277,7 +279,17 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
         p.run().wait_until_finish()
 
         print("Batch processing completed.")
-    
 
+
+israel_tz = pytz.timezone('Asia/Jerusalem')
+def run_at_specific_time():
+    israel_time = datetime.now(israel_tz)
+    if israel_time.hour == 12 and israel_time.minute == 00:
+        run()
+
+def run_daily_job():
+    while True:
+        run_at_specific_time()
+        time.sleep(60)  # Check every minute
 if __name__ == '__main__':
-    run()
+    run_daily_job()
