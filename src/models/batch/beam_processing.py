@@ -21,6 +21,7 @@ sys.path.append(project_root)
 
 from config.config import DRIVER_CLASS_NAME, PASSWORD, JDBC_URL, USERNAME, INPUT_TABLE, OUTPUT_TABLE, INPUT_TYPE, OUTPUT_TYPE, JDBC_URL
 
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 INPUT_DIR = os.path.join(current_dir, '..', '..', '..', 'data', 'batch_input')
@@ -37,6 +38,7 @@ if whylabs_org_id and whylabs_api_key and whylabs_dataset_id:
     os.environ["WHYLABS_DEFAULT_DATASET_ID"] = whylabs_dataset_id
 else:
     print("Warning: WhyLabs environment variables are not set. WhyLabs logging will be disabled.")
+
 
 engine = create_engine(JDBC_URL)
 Session = sessionmaker(bind=engine)
@@ -254,6 +256,7 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
                 return collected_data | beam.Map(apply_whylogs)
 
                 results = collected_data | beam.Map(apply_whylogs)
+
                 results.writer("whylabs").write()
                 
                 os.remove(DATA_PATH)
@@ -280,7 +283,6 @@ def run(input_type=INPUT_TYPE, output_type=OUTPUT_TYPE, db_url=None, input_table
         p.run().wait_until_finish()
 
         print("Batch processing completed.")
-    
 
 if __name__ == '__main__':
     run()
