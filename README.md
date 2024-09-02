@@ -2,6 +2,8 @@
 
 This project implements a machine learning model for customer churn prediction, utilizing FastAPI and Apache Beam. It includes a comprehensive MLOps pipeline with monitoring, batch processing, and CI/CD integration.
 
+The presenation of this project can be found here: [Gamma Link](https://gamma.app/docs/Customer-Churn-Prediction-MLOps-System-klmmvju41ctqpmv)
+
 ## Features
 
 - FastAPI application for single predictions
@@ -102,16 +104,16 @@ graph TD
     G -->|No| J[End]
     I --> J
 
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
-    classDef trigger fill:#ff9999,stroke:#333,stroke-width:2px;
-    classDef step fill:#99ccff,stroke:#333,stroke-width:2px;
-    classDef decision fill:#ffcc99,stroke:#333,stroke-width:2px;
-    classDef end fill:#ccff99,stroke:#333,stroke-width:2px;
-    
-    class A trigger;
-    class B,C,D,E,F,H,I step;
-    class G decision;
-    class J end;
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef trigger fill:#ff9999,stroke:#333,stroke-width:2px
+    classDef step fill:#99ccff,stroke:#333,stroke-width:2px
+    classDef decision fill:#ffcc99,stroke:#333,stroke-width:2px
+    classDef endClass fill:#ccff99,stroke:#333,stroke-width:2px
+
+    class A trigger
+    class B,C,D,E,F,H,I step
+    class G decision
+    class J endClass
 ```
 
 ## Prerequisites
@@ -220,9 +222,5 @@ To modify input parameters or other configurations, please refer to the configur
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
-## Acknowledgments
-
-[Add any acknowledgments here]
 
 For more information or support, please open an issue in the GitHub repository.
