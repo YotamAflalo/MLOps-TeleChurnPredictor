@@ -232,8 +232,4 @@ To modify input parameters or other configurations, please refer to the configur
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
-## Acknowledgments
-
-[Add any acknowledgments here]
-
 For more information or support, please open an issue in the GitHub repository.
