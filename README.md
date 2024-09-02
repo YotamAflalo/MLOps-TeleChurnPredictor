@@ -125,7 +125,7 @@ graph TD
 ## Getting Started
 
 ### Running the Full Service
-
+0. create '.env' file int the docker directory, based on the example.env.txt file 
 1. Navigate to the docker directory:
    ```
    cd docker
