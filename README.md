@@ -24,38 +24,29 @@ This project implements a machine learning model for customer churn prediction, 
 
 ```mermaid
 graph TD
-    A[api] -->|depends on| B[db]
-    A -->|connects to| C[prometheus]
-    D[batch] -->|depends on| B
-    C -->|visualized by| E[grafana]
-    F[network]
-    
-    A -->|part of| F
-    B -->|part of| F
-    C -->|part of| F
-    D -->|part of| F
-    E -->|part of| F
-    
-    subgraph Volumes
-        G[postgres_data]
-        H[grafana_data]
-    end
-    
-    B -->|uses| G
-    E -->|uses| H
+    A[<b>API</b>] -->|Saves predictions| B[(<b>PostgreSQL DB</b>)]
+    A -->|Monitored by| C[<b>Prometheus</b>]
+    C -->|Visualized in| D[<b>Grafana</b>]
+    A -.->|Logs stored in| B
+    B -->|Daily API logs| E[<b>WhyLabs</b>]
+    F[<b>Batch Processing</b>] <-->|Reads/Writes| B
+    F <-->|Processes files| G[<b>Target Folder</b>]
+    F -->|Daily logs & predictions| E
+    H[<b>User</b>] -->|API requests| A
+    I[<b>Cron Job</b>] -->|Triggers daily| F
+    J[<b>MLOps Engineer</b>] -->|Views| D
+    D -->|Alerts| J
 
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
-    classDef service fill:#AED6F1,stroke:#3498DB,stroke-width:2px;
-    classDef db fill:#F9E79F,stroke:#F4D03F,stroke-width:2px;
-    classDef monitoring fill:#D5F5E3,stroke:#2ECC71,stroke-width:2px;
-    classDef network fill:#FADBD8,stroke:#E74C3C,stroke-width:2px;
-    classDef volume fill:#8E44AD,stroke:#4A235A,stroke-width:2px,color:#FFFFFF;
+    classDef primary fill:#e6f3ff,stroke:#333,stroke-width:2px;
+    classDef secondary fill:#d0e0e3,stroke:#333,stroke-width:2px;
+    classDef tertiary fill:#fff2cc,stroke:#333,stroke-width:2px;
+    classDef quaternary fill:#f2e6ff,stroke:#333,stroke-width:2px;
+    classDef default color:#000000;
 
-    class A,D service;
-    class B db;
-    class C,E monitoring;
-    class F network;
-    class G,H volume;
+    class A,F primary;
+    class B,G secondary;
+    class C,D,E tertiary;
+    class H,I,J quaternary;
 ```
 
 ### Docker Compose Service Architecture
